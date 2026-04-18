@@ -1,0 +1,151 @@
+# =============================================================================
+# AulaCAL Backend — Dependencias Python
+# =============================================================================
+# Versiones fijadas para garantizar reproducibilidad entre entornos.
+# Para actualizar una dependencia: pip install PAQUETE --upgrade
+# Luego actualizá la versión aquí manualmente y testeá antes de commitear.
+#
+# Instalación:
+#   pip install -r requirements.txt
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# Framework principal
+# -----------------------------------------------------------------------------
+
+# FastAPI: framework web async de alto rendimiento.
+fastapi==0.115.5
+
+# Uvicorn: servidor ASGI para correr FastAPI.
+# [standard] incluye soporte para WebSockets y recarga en caliente.
+uvicorn[standard]==0.32.1
+
+# Starlette: base de FastAPI, necesaria para middlewares y routing.
+starlette==0.41.2
+
+
+# -----------------------------------------------------------------------------
+# Validación de datos
+# -----------------------------------------------------------------------------
+
+# Pydantic v2: validación de schemas (Request/Response) y Settings (.env).
+pydantic==2.10.2
+
+# Extensión de Pydantic para leer variables de entorno desde .env.
+pydantic-settings==2.6.1
+
+# Validación de emails en schemas Pydantic (EmailStr).
+email-validator==2.2.0
+
+
+# -----------------------------------------------------------------------------
+# Base de datos — Supabase / PostgreSQL
+# -----------------------------------------------------------------------------
+
+# Cliente oficial de Supabase para Python.
+supabase==2.10.0
+
+# SQLAlchemy: ORM para interactuar con PostgreSQL.
+# Usamos la versión async para no bloquear el event loop de FastAPI.
+sqlalchemy==2.0.36
+
+# Driver async de PostgreSQL para SQLAlchemy (reemplaza a psycopg2).
+asyncpg==0.30.0
+
+# Alembic: migraciones de base de datos.
+alembic==1.14.0
+
+
+# -----------------------------------------------------------------------------
+# Autenticación y seguridad
+# -----------------------------------------------------------------------------
+
+# Generación y validación de JWT (JSON Web Tokens).
+python-jose[cryptography]==3.3.0
+
+# Hasheo de contraseñas con bcrypt.
+passlib[bcrypt]==1.7.4
+
+# Utilidades criptográficas (requerido por python-jose).
+cryptography==43.0.3
+
+
+# -----------------------------------------------------------------------------
+# Pagos
+# -----------------------------------------------------------------------------
+
+# SDK oficial de MercadoPago para Python.
+mercadopago==2.3.0
+
+# Requests HTTP para llamadas a la API de PayPal
+# (PayPal no tiene SDK oficial moderno para Python).
+httpx==0.27.2
+
+
+# -----------------------------------------------------------------------------
+# Emails
+# -----------------------------------------------------------------------------
+
+# Envío de emails por SMTP con soporte async.
+aiosmtplib==3.0.2
+
+# Motor de plantillas para emails HTML (bienvenida, 2FA, etc.).
+jinja2==3.1.4
+
+
+# -----------------------------------------------------------------------------
+# Cloudflare Stream
+# -----------------------------------------------------------------------------
+
+# httpx ya incluido arriba — se usa para llamadas a la API de Cloudflare.
+# PyJWT: para firmar tokens de streaming de Cloudflare Stream.
+PyJWT==2.10.1
+
+
+# -----------------------------------------------------------------------------
+# Utilidades generales
+# -----------------------------------------------------------------------------
+
+# Carga de archivos .env en el entorno (complementa pydantic-settings).
+python-dotenv==1.0.1
+
+# Manejo de fechas y zonas horarias (mejor alternativa a datetime estándar).
+python-dateutil==2.9.0.post0
+
+# Generación de UUIDs (incluido en stdlib, pero este paquete da utilidades extra).
+# uuid ya viene en Python stdlib — no necesita instalación.
+
+# Multipart form data (necesario para subida de archivos/videos).
+python-multipart==0.0.18
+
+# Soporte para tipos de datos adicionales en respuestas (Decimal, etc.).
+orjson==3.10.12
+
+
+# -----------------------------------------------------------------------------
+# Testing
+# -----------------------------------------------------------------------------
+
+# Framework de testing.
+pytest==8.3.4
+
+# Soporte async para pytest (necesario para testear endpoints de FastAPI).
+pytest-asyncio==0.24.0
+
+# Cliente HTTP de pruebas para FastAPI (no requiere servidor levantado).
+httpx==0.27.2
+
+# Mocking de dependencias en tests.
+pytest-mock==3.14.0
+
+
+# -----------------------------------------------------------------------------
+# Desarrollo (no necesarias en producción)
+# -----------------------------------------------------------------------------
+
+# Linter y formatter de código Python.
+ruff==0.8.3
+
+# Type checking estático.
+mypy==1.13.0
