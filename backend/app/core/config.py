@@ -2,9 +2,7 @@
 app/core/config.py
 ------------------
 Configuración central de AulaCAL.
-
-Por ahora contiene las variables de Supabase y JWT.
-Se irán agregando las demás secciones a medida que avance el proyecto.
+Actualmente incluye: Supabase, JWT y Email.
 """
 
 from functools import lru_cache
@@ -14,11 +12,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """
-    Clase principal de configuración.
-    Lee las variables de entorno desde el archivo .env.
-    Los campos sin 'default' son obligatorios.
-    """
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -27,71 +20,35 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ──────────────────────────────────────────────────────────────────────
-    # BASE DE DATOS — SUPABASE
-    # ──────────────────────────────────────────────────────────────────────
+    # ── SUPABASE ──────────────────────────────────────────────────────────
 
-    SUPABASE_DB_URL: str = Field(
-        ...,
-        description="URL de conexión a PostgreSQL de Supabase.",
-    )
-    SUPABASE_URL: str = Field(
-        ...,
-        description="URL pública del proyecto Supabase.",
-    )
-    SUPABASE_ANON_KEY: str = Field(
-        ...,
-        description="Clave anónima de Supabase.",
-    )
-    SUPABASE_SERVICE_ROLE_KEY: str = Field(
-        ...,
-        description="Clave de servicio de Supabase. Solo usar en backend.",
-    )
+    SUPABASE_DB_URL: str = Field(...)
+    SUPABASE_URL: str = Field(...)
+    SUPABASE_ANON_KEY: str = Field(...)
+    SUPABASE_SERVICE_ROLE_KEY: str = Field(...)
 
-    # ──────────────────────────────────────────────────────────────────────
-    # SEGURIDAD — JWT
-    # ──────────────────────────────────────────────────────────────────────
+    # ── JWT ───────────────────────────────────────────────────────────────
 
-    JWT_SECRET_KEY: str = Field(
-        ...,
-        min_length=32,
-        description=(
-            "Clave secreta para firmar JWT. "
-            "Generá una con: python -c \"import secrets; print(secrets.token_hex(32))\""
-        ),
-    )
-    JWT_ALGORITHM: str = Field(
-        default="HS256",
-        description="Algoritmo de firma del JWT.",
-    )
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=15,
-        gt=0,
-        description="Tiempo de vida del Access Token en minutos.",
-    )
-    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
-        default=7,
-        gt=0,
-        description="Tiempo de vida del Refresh Token en días.",
-    )
-    TWO_FACTOR_CODE_EXPIRE_DAYS: int = Field(
-        default=30,
-        gt=0,
-        description="Cada cuántos días se requiere código 2FA por email.",
-    )
-    EMAIL_CODE_EXPIRE_MINUTES: int = Field(
-        default=15,
-        gt=0,
-        description="Tiempo de vida de códigos de verificación de email.",
-    )
+    JWT_SECRET_KEY: str = Field(..., min_length=32)
+    JWT_ALGORITHM: str = Field(default="HS256")
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, gt=0)
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, gt=0)
+    TWO_FACTOR_CODE_EXPIRE_DAYS: int = Field(default=30, gt=0)
+    EMAIL_CODE_EXPIRE_MINUTES: int = Field(default=15, gt=0)
+
+    # ── EMAIL — SMTP ─────────────────────────────────────────────────────
+
+    SMTP_HOST: str = Field(...)
+    SMTP_PORT: int = Field(default=587, gt=0)
+    SMTP_USER: str = Field(...)
+    SMTP_PASSWORD: str = Field(...)
+    EMAIL_FROM_NAME: str = Field(default="AulaCAL")
+    EMAIL_FROM_ADDRESS: str = Field(...)
+    SMTP_USE_TLS: bool = Field(default=True)
 
 
 @lru_cache
 def get_settings() -> Settings:
-    """
-    Retorna la instancia única de Settings.
-    Lee el .env una sola vez y cachea el resultado.
-    """
     return Settings()  # type: ignore
 
 
