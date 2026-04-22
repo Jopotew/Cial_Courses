@@ -55,7 +55,7 @@ class UserLoginRequest(BaseModel):
     email: EmailStr = Field(
         ...,
         description="Email del usuario.",
-        examples=["juan@ejemplo.com"],
+        examples=["juan.perez@ejemplo.com"],
     )
     password: str = Field(
         ...,
