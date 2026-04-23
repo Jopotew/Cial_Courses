@@ -25,6 +25,7 @@ venv/
 .venv/
 env/
 ENV/
+backend/venv
 
 # Distribución y empaquetado
 dist/
