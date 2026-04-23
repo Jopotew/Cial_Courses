@@ -8,7 +8,7 @@ Punto de entrada de la aplicación AulaCAL.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, users, categories, courses, videos, video_progress
+from app.api import auth, users, categories, courses, videos, video_progress, enrollments
 app = FastAPI(
     title="AulaCAL",
     version="1.0.0",
@@ -29,6 +29,7 @@ app.include_router(categories.router, prefix="/api/v1")
 app.include_router(courses.router, prefix="/api/v1")
 app.include_router(videos.router, prefix="/api/v1")
 app.include_router(video_progress.router, prefix="/api/v1")
+app.include_router(enrollments.router, prefix="/api/v1")
 
 @app.get("/")
 def root():

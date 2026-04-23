@@ -3,6 +3,10 @@ app/api/videos.py
 -----------------
 Endpoints del módulo de videos.
 
+AHORA CON VALIDACIÓN DE MATRÍCULA:
+- Solo usuarios matriculados pueden ver videos del curso
+- Admins tienen acceso a todo
+
 Rutas públicas (requieren matrícula):
     GET /courses/{course_id}/videos     → listar videos del curso
     GET /videos/{id}                    → detalle del video
@@ -33,16 +37,40 @@ from app.schemas.video import (
     VideoPublishRequest,
     VideoResponse,
     VideoStreamResponse,
+    VideoUpdateRequest,
 )
-from app.services import video as video_service
+from app.services import enrollment as enrollment_service
 from app.services import course as course_service
+from app.services import video as video_service
+
 from app.services.video_utils import validate_video_file
 
 router = APIRouter(prefix="/videos", tags=["Videos"])
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Endpoints públicos (requieren autenticación, verificaremos matrícula después)
+# Helper para validar matrícula
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _check_enrollment(user_id: UUID, course_id: UUID, user_role: int):
+    """
+    Valida que el usuario esté matriculado en el curso.
+    Los admins (role=1) tienen acceso automático.
+    """
+    # Admins tienen acceso a todo
+    if user_role == 1:
+        return
+    
+    # Verificar matrícula
+    if not enrollment_service.is_user_enrolled(user_id, course_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No estás matriculado en este curso. Debes comprarlo primero para acceder a los videos.",
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Endpoints públicos (requieren autenticación + matrícula)
 # ──────────────────────────────────────────────────────────────────────────────
 
 @router.get("/courses/{course_id}/videos", response_model=list[VideoResponse])
@@ -53,9 +81,10 @@ def list_course_videos(
     """
     Lista los videos de un curso.
     
-    TODO: Verificar que el usuario esté matriculado en el curso.
-    Por ahora solo verifica que esté autenticado.
+    ✅ Requiere: JWT válido + matrícula activa en el curso (o ser admin).
     """
+    user_id = UUID(current_user["id"])
+    
     # Verificar que el curso existe y está publicado
     course = course_service.get_course_by_id(course_id, include_unpublished=False)
     if course is None:
@@ -64,10 +93,8 @@ def list_course_videos(
             detail="Curso no encontrado o no está publicado.",
         )
     
-    # TODO: Verificar matrícula
-    # enrolled = enrollment_service.is_user_enrolled(current_user["id"], course_id)
-    # if not enrolled and current_user["role"] != 1:
-    #     raise HTTPException(status_code=403, detail="No estás matriculado en este curso")
+    # ✅ VALIDAR MATRÍCULA
+    _check_enrollment(user_id, course_id, current_user.get("role", 0))
     
     videos = video_service.get_videos_by_course(course_id, include_unpublished=False)
     return [VideoResponse.model_validate(v) for v in videos]
@@ -81,8 +108,10 @@ def get_video(
     """
     Obtiene el detalle de un video.
     
-    TODO: Verificar que el usuario esté matriculado en el curso del video.
+    ✅ Requiere: JWT válido + matrícula activa en el curso del video (o ser admin).
     """
+    user_id = UUID(current_user["id"])
+    
     video = video_service.get_video_by_id(video_id, include_unpublished=False)
     if video is None:
         raise HTTPException(
@@ -90,7 +119,9 @@ def get_video(
             detail="Video no encontrado o no está publicado.",
         )
     
-    # TODO: Verificar matrícula en el curso del video
+    # ✅ VALIDAR MATRÍCULA en el curso del video
+    course_id = UUID(video["course_id"])
+    _check_enrollment(user_id, course_id, current_user.get("role", 0))
     
     return VideoResponse.model_validate(video)
 
@@ -104,8 +135,10 @@ def get_video_stream(
     Genera URL firmada para reproducir el video.
     
     La URL expira en 1 hora por seguridad.
-    TODO: Verificar matrícula antes de generar la URL.
+    ✅ Requiere: JWT válido + matrícula activa (o ser admin).
     """
+    user_id = UUID(current_user["id"])
+    
     video = video_service.get_video_by_id(video_id, include_unpublished=False)
     if video is None:
         raise HTTPException(
@@ -113,7 +146,9 @@ def get_video_stream(
             detail="Video no encontrado o no está publicado.",
         )
     
-    # TODO: Verificar matrícula
+    # ✅ VALIDAR MATRÍCULA
+    course_id = UUID(video["course_id"])
+    _check_enrollment(user_id, course_id, current_user.get("role", 0))
     
     expires_in = 3600  # 1 hora
     video_url = video_service.get_video_stream_url(video_id, expires_in=expires_in)
@@ -176,10 +211,13 @@ async def upload_video(
     # Crear el video
     from app.schemas.video import VideoCreateRequest
     
+    # Fix: Si order es 0 (vacío en Swagger), convertirlo a None
+    order_value = order if order and order > 0 else None
+    
     video_data = VideoCreateRequest(
         title=title,
         description=description,
-        order=order if order and order > 0 else None, 
+        order=order_value,
     )
     
     new_video = video_service.create_video(
@@ -266,7 +304,7 @@ async def update_video(
     order_value = order if order and order > 0 else None
     
     data = VideoUpdateRequest(
-        title=title if title else None,  # Si está vacío, None
+        title=title if title else None,
         description=description if description else None,
         order=order_value,
     )
