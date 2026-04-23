@@ -1,0 +1,45 @@
+🔲 PENDIENTE
+1. Cron Jobs / Tareas programadas ← Siguiente
+
+Limpiar pagos pendientes expirados (>24 horas sin pagar)
+Desactivar matrículas expiradas
+Limpiar tokens 2FA expirados
+Limpiar reset password tokens expirados
+
+2. Pagos - PayPal (opcional)
+
+SDK PayPal
+Webhooks PayPal
+Mismo flujo que MercadoPago
+
+3. Suscripciones (opcional)
+
+Tabla subscriptions
+Pago mensual recurrente
+Acceso a todos los cursos mientras activa
+Webhooks renovación/cancelación
+
+4. Admin Dashboard / Reportes
+
+Endpoint de estadísticas generales
+Total usuarios, cursos, ventas, ingresos
+Cursos más vendidos
+Gráficos de crecimiento
+
+5. Thumbnails de cursos
+
+Upload imagen portada curso
+Bucket en Supabase
+Mostrar en listado
+
+6. Notificaciones email
+
+Email de confirmación de compra
+Email de bienvenida al curso
+Email de recordatorio
+
+7. Mejorar sistema de pagos
+
+Refunds (devoluciones)
+Cancelaciones
+Historial de transacciones

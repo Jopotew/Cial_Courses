@@ -46,7 +46,10 @@ class Settings(BaseSettings):
     EMAIL_FROM_ADDRESS: str = Field(...)
     SMTP_USE_TLS: bool = Field(default=True)
 
-
+    MERCADOPAGO_ACCESS_TOKEN: str
+    MERCADOPAGO_PUBLIC_KEY: str
+    FRONTEND_URL: str = "http://localhost:3000"
+    BACKEND_URL: str = "https://cyclist-unvaried-oval.ngrok-free.dev"
 @lru_cache
 def get_settings() -> Settings:
     return Settings()  # type: ignore
