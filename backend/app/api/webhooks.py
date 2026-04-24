@@ -2,14 +2,12 @@
 app/api/webhooks.py
 -------------------
 Endpoints para webhooks de servicios externos (MercadoPago, PayPal, etc.).
-
-IMPORTANTE: Estos endpoints NO requieren autenticación JWT.
-Son llamados directamente por los servicios de pago.
 """
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Request
 
 from app.services import payment as payment_service
+from app.services import subscription as subscription_service
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -17,7 +15,12 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 @router.post("/mercadopago")
 async def mercadopago_webhook(request: Request):
     """
-    Webhook que MercadoPago llama cuando hay una actualización de pago.
+    Webhook que MercadoPago llama cuando hay actualizaciones.
+    
+    Maneja:
+    - Pagos únicos (type: "payment")
+    - Suscripciones (action: "subscription.preapproval_plan.*")
+    - Cobros de suscripciones (type: "payment" + preapproval_id)
     """
     try:
         # Obtener el body del webhook
@@ -28,10 +31,10 @@ async def mercadopago_webhook(request: Request):
         print(f"Body completo: {body}")
         print("=" * 80)
         
-        # MercadoPago envía diferentes tipos de notificaciones
-        # Nos interesan las de tipo "payment"
+        # ──────────────────────────────────────────────────────────────────────
+        # CASO 1: Notificación de tipo "payment" (pagos únicos o cobros de suscripción)
+        # ──────────────────────────────────────────────────────────────────────
         if body.get("type") == "payment":
-            # Obtener el ID del pago desde el webhook
             payment_id = body.get("data", {}).get("id")
             
             print(f"Payment ID extraído: {payment_id}")
@@ -53,8 +56,37 @@ async def mercadopago_webhook(request: Request):
                 "result": result
             }
         
-        # Otros tipos de notificaciones
-        print(f"Tipo de webhook ignorado: {body.get('type')}")
+        # ──────────────────────────────────────────────────────────────────────
+        # CASO 2: Notificación de suscripción (authorized, paused, cancelled)
+        # ──────────────────────────────────────────────────────────────────────
+        action = body.get("action", "")
+        
+        if "subscription" in action or "preapproval" in action:
+            preapproval_id = body.get("data", {}).get("id")
+            
+            print(f"Preapproval ID extraído: {preapproval_id}")
+            
+            if not preapproval_id:
+                print("ERROR: No preapproval ID in webhook")
+                return {
+                    "status": "error",
+                    "message": "No preapproval ID in webhook"
+                }
+            
+            # Procesar la suscripción
+            print(f"Llamando a process_subscription_webhook con ID: {preapproval_id}")
+            result = subscription_service.process_subscription_webhook(str(preapproval_id))
+            print(f"Resultado del procesamiento: {result}")
+            
+            return {
+                "status": "success",
+                "result": result
+            }
+        
+        # ──────────────────────────────────────────────────────────────────────
+        # Otros tipos de notificaciones (merchant_order, etc.)
+        # ──────────────────────────────────────────────────────────────────────
+        print(f"Tipo de webhook ignorado: type={body.get('type')}, action={action}")
         return {
             "status": "ignored",
             "message": f"Webhook type '{body.get('type')}' not processed"
@@ -72,12 +104,11 @@ async def mercadopago_webhook(request: Request):
             "message": str(e)
         }
 
+
 @router.get("/mercadopago/test")
 def test_webhook():
     """
     Endpoint de prueba para verificar que el webhook está accesible.
-    
-    Útil para testing local con ngrok.
     """
     return {
         "status": "ok",

@@ -1,0 +1,73 @@
+# ============================================================================
+# CONFIGURACIÓN DE EMAIL / SMTP
+# ============================================================================
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 1. AGREGAR EN .env
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Mailtrap (desarrollo/testing)
+SMTP_HOST=sandbox.smtp.mailtrap.io
+SMTP_PORT=2525
+SMTP_USERNAME=tu-username-de-mailtrap
+SMTP_PASSWORD=tu-password-de-mailtrap
+SMTP_FROM_EMAIL=noreply@aulacal.com
+SMTP_FROM_NAME=AulaCAL
+
+# NOTA: Para obtener las credenciales de Mailtrap:
+# 1. Andá a https://mailtrap.io/
+# 2. Creá una cuenta gratis
+# 3. Andá a "Email Testing" → "Inboxes" → "My Inbox"
+# 4. En la pestaña "SMTP Settings"
+# 5. Copiá el Username y Password
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 2. AGREGAR EN app/core/config.py
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Dentro de la clase Settings, agregá estos campos:
+
+"""
+class Settings(BaseSettings):
+    # ... campos existentes ...
+    
+    # SMTP / Email
+    SMTP_HOST: str
+    SMTP_PORT: int
+    SMTP_USERNAME: str
+    SMTP_PASSWORD: str
+    SMTP_FROM_EMAIL: str
+    SMTP_FROM_NAME: str
+    
+    # ... resto de campos ...
+"""
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 3. PRODUCCIÓN (cuando vayas a producción, cambiá a un servicio real)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Opción A: SendGrid (gratis hasta 100 emails/día)
+# SMTP_HOST=smtp.sendgrid.net
+# SMTP_PORT=587
+# SMTP_USERNAME=apikey
+# SMTP_PASSWORD=tu-api-key-de-sendgrid
+# SMTP_FROM_EMAIL=noreply@aulacal.com
+# SMTP_FROM_NAME=AulaCAL
+
+# Opción B: AWS SES (muy barato, muy confiable)
+# SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+# SMTP_PORT=587
+# SMTP_USERNAME=tu-access-key
+# SMTP_PASSWORD=tu-secret-key
+# SMTP_FROM_EMAIL=noreply@aulacal.com
+# SMTP_FROM_NAME=AulaCAL
+
+# Opción C: Gmail (solo para testing, no para producción)
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USERNAME=tu-email@gmail.com
+# SMTP_PASSWORD=tu-app-password
+# SMTP_FROM_EMAIL=tu-email@gmail.com
+# SMTP_FROM_NAME=AulaCAL

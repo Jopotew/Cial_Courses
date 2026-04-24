@@ -128,6 +128,17 @@ def create_payment_preference(
     settings = get_settings()
     sdk = _mp_sdk()
     
+    # MEDIDA DE SEGURIDAD: Limitar pagos pending a 5 por usuario
+    pending_count = _client().table("payments").select(
+        "id", count="exact"
+    ).eq("user_id", str(user_id)).eq("status", "pending").execute()
+    
+    if pending_count.count >= 5:
+        raise ValueError(
+            "Tenés 5 pagos pendientes sin completar. "
+            "Por favor completá o cancelá los pagos pendientes antes de crear uno nuevo."
+        )
+    
     # Crear preferencia en MercadoPago
     preference_data = {
         "items": [
@@ -149,7 +160,6 @@ def create_payment_preference(
     
     # Crear preferencia
     preference = sdk.preference().create(preference_data)
-    print("RESPONSE FROM MERCADOPAGO:", preference)
     preference_id = preference["response"]["id"]
     init_point = preference["response"]["init_point"]
     sandbox_init_point = preference["response"]["sandbox_init_point"]
@@ -274,6 +284,8 @@ def process_payment_webhook(mp_payment_id: str) -> dict:
         "message": f"Pago en estado: {status}",
         "payment_id": our_payment["id"],
     }
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Utilidades
 # ──────────────────────────────────────────────────────────────────────────────
