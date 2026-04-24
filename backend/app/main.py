@@ -8,14 +8,26 @@ Punto de entrada de la aplicación AulaCAL.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, users, categories, courses, videos, video_progress, enrollments, payments, webhooks
+from app.api import auth, users, categories, courses, videos, video_progress, enrollments, payments, webhooks, subscriptions, admin, emails
 
+from contextlib import asynccontextmanager
+from app.services import scheduler as scheduler_service
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: iniciar scheduler
+    scheduler_service.start_scheduler()
+    yield
+    # Shutdown: detener scheduler
+    scheduler_service.stop_scheduler()
+ 
+ 
 app = FastAPI(
-    title="AulaCAL",
+    title="AulaCAL API",
+    description="API para plataforma de cursos online",
     version="1.0.0",
-    description="Backend de AulaCAL — Plataforma de cursos online de CIAL.",
+    lifespan=lifespan,
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -26,13 +38,21 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
+
+app.include_router(emails.router, prefix="/api/v1")
+
 app.include_router(categories.router, prefix="/api/v1")
 app.include_router(courses.router, prefix="/api/v1")
 app.include_router(videos.router, prefix="/api/v1")
 app.include_router(video_progress.router, prefix="/api/v1")
+
 app.include_router(enrollments.router, prefix="/api/v1")
 app.include_router(payments.router, prefix="/api/v1")
+app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
+
+app.include_router(admin.router, prefix="/api/v1")
+
 
 @app.get("/")
 def root():

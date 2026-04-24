@@ -4,24 +4,18 @@ app/services/email_service.py
 Servicio de email de AulaCAL.
 
 Responsabilidades:
-    1. Guardar códigos de verificación en la tabla email_codes.
-    2. Validar códigos ingresados por el usuario.
-    3. Enviar emails con los códigos via SMTP.
-
-Tipos de código:
-    - 'register'       → verificación de email al registrarse
-    - 'login_2fa'      → doble factor cada 30 días
-    - 'reset_password'  → recuperación de contraseña
+    1. Guardar códigos de verificación en la tabla email_codes (2FA, reset password, etc.)
+    2. Validar códigos ingresados por el usuario
+    3. Enviar emails de notificaciones (bienvenida, compra, etc.)
 """
 
 import smtplib
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Optional
 from uuid import UUID
 
-from app.core.config import settings
+from app.core.config import settings, get_settings
 from app.core.security import generate_numeric_code
 from app.db.supabase import get_supabase_admin_client
 
@@ -31,23 +25,15 @@ def _client():
     return get_supabase_admin_client()
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Gestión de códigos en la DB
-# ──────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# PARTE 1: CÓDIGOS DE VERIFICACIÓN (2FA, Reset Password, etc.)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def create_code(user_id: UUID, code_type: str) -> str:
     """
     Genera un código de 6 dígitos, lo guarda en la DB y lo retorna.
-
-    Antes de crear uno nuevo, invalida todos los códigos anteriores
-    del mismo tipo para ese usuario (evita acumulación).
-
-    Args:
-        user_id:   UUID del usuario.
-        code_type: 'register' | 'login_2fa' | 'reset_password'
-
-    Returns:
-        El código de 6 dígitos generado.
+    
+    Tipos: 'register', 'login_2fa', 'reset_password'
     """
     # Invalidar códigos anteriores del mismo tipo
     _client().table("email_codes").update({
@@ -75,21 +61,8 @@ def create_code(user_id: UUID, code_type: str) -> str:
 def verify_code(user_id: UUID, code: str, code_type: str) -> bool:
     """
     Valida un código ingresado por el usuario.
-
-    Verifica que:
-        - Exista un código con ese valor para ese usuario y tipo.
-        - No esté usado.
-        - No esté expirado.
-
-    Si es válido, lo marca como usado para que no se pueda reutilizar.
-
-    Args:
-        user_id:   UUID del usuario.
-        code:      Código de 6 dígitos ingresado.
-        code_type: 'register' | 'login_2fa' | 'reset_password'
-
-    Returns:
-        True si el código es válido, False si no.
+    
+    Verifica que exista, no esté usado y no esté expirado.
     """
     result = (
         _client()
@@ -120,47 +93,77 @@ def verify_code(user_id: UUID, code: str, code_type: str) -> bool:
     return True
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Envío de emails
-# ──────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# PARTE 2: ENVÍO DE EMAILS (SMTP)
+# ══════════════════════════════════════════════════════════════════════════════
 
-def _send_email(to_email: str, subject: str, html_body: str) -> None:
+def _send_email_smtp(to_email: str, subject: str, html_body: str, text_body: str = None) -> bool:
     """
     Envía un email via SMTP.
-
-    Se conecta al servidor SMTP configurado en el .env,
-    envía el email y cierra la conexión.
-
-    Args:
-        to_email:  Dirección del destinatario.
-        subject:   Asunto del email.
-        html_body: Contenido HTML del email.
+    
+    Soporta dos configuraciones:
+    1. Vieja (EMAIL_FROM_ADDRESS, SMTP_USER, etc.)
+    2. Nueva (SMTP_FROM_EMAIL, SMTP_USERNAME, etc.)
     """
-    msg = MIMEMultipart("alternative")
-    msg["From"] = f"{settings.EMAIL_FROM_NAME} <{settings.EMAIL_FROM_ADDRESS}>"
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(html_body, "html"))
+    try:
+        # Intentar configuración nueva primero
+        try:
+            smtp_settings = get_settings()
+            config = {
+                "host": smtp_settings.SMTP_HOST,
+                "port": smtp_settings.SMTP_PORT,
+                "username": smtp_settings.SMTP_USERNAME,
+                "password": smtp_settings.SMTP_PASSWORD,
+                "from_email": smtp_settings.SMTP_FROM_EMAIL,
+                "from_name": smtp_settings.SMTP_FROM_NAME,
+                "use_tls": True,
+            }
+        except:
+            # Fallback a configuración vieja
+            config = {
+                "host": settings.SMTP_HOST,
+                "port": settings.SMTP_PORT,
+                "username": settings.SMTP_USER,
+                "password": settings.SMTP_PASSWORD,
+                "from_email": settings.EMAIL_FROM_ADDRESS,
+                "from_name": settings.EMAIL_FROM_NAME,
+                "use_tls": settings.SMTP_USE_TLS,
+            }
+        
+        # Crear mensaje
+        msg = MIMEMultipart("alternative")
+        msg["From"] = f"{config['from_name']} <{config['from_email']}>"
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        
+        # Agregar texto plano si existe
+        if text_body:
+            msg.attach(MIMEText(text_body, "plain"))
+        
+        # Agregar HTML
+        msg.attach(MIMEText(html_body, "html"))
+        
+        # Enviar
+        with smtplib.SMTP(config["host"], config["port"]) as server:
+            if config["use_tls"]:
+                server.starttls()
+            server.login(config["username"], config["password"])
+            server.sendmail(config["from_email"], to_email, msg.as_string())
+        
+        print(f"[EMAIL] Enviado a {to_email}: {subject}")
+        return True
+        
+    except Exception as e:
+        print(f"[EMAIL] Error enviando email a {to_email}: {e}")
+        return False
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        if settings.SMTP_USE_TLS:
-            server.starttls()
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.sendmail(settings.EMAIL_FROM_ADDRESS, to_email, msg.as_string())
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Emails específicos de la aplicación
-# ──────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# PARTE 3: EMAILS DE VERIFICACIÓN (2FA)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def send_verification_email(to_email: str, code: str) -> None:
-    """
-    Envía el email de verificación de cuenta al registrarse.
-
-    Args:
-        to_email: Email del usuario recién registrado.
-        code:     Código de 6 dígitos a enviar.
-    """
+    """Email de verificación de cuenta al registrarse."""
     subject = "AulaCAL — Verificá tu cuenta"
     html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
@@ -170,53 +173,173 @@ def send_verification_email(to_email: str, code: str) -> None:
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1E3A5F;">{code}</span>
         </div>
         <p style="color: #666;">El código expira en {settings.EMAIL_CODE_EXPIRE_MINUTES} minutos.</p>
-        <p style="color: #999; font-size: 12px;">Si no creaste esta cuenta, ignorá este email.</p>
     </div>
     """
-    _send_email(to_email, subject, html)
+    _send_email_smtp(to_email, subject, html)
 
 
 def send_2fa_email(to_email: str, code: str) -> None:
-    """
-    Envía el email de doble factor de autenticación.
-
-    Args:
-        to_email: Email del usuario que inicia sesión.
-        code:     Código de 6 dígitos para 2FA.
-    """
+    """Email de doble factor de autenticación."""
     subject = "AulaCAL — Código de verificación"
     html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #1E3A5F;">Verificación de seguridad</h2>
-        <p>Se solicitó un código de verificación para tu cuenta de AulaCAL.</p>
+        <p>Se solicitó un código de verificación para tu cuenta.</p>
         <div style="background: #F0F4F8; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1E3A5F;">{code}</span>
         </div>
         <p style="color: #666;">El código expira en {settings.EMAIL_CODE_EXPIRE_MINUTES} minutos.</p>
-        <p style="color: #999; font-size: 12px;">Si no fuiste vos, cambiá tu contraseña inmediatamente.</p>
     </div>
     """
-    _send_email(to_email, subject, html)
+    _send_email_smtp(to_email, subject, html)
 
 
 def send_reset_password_email(to_email: str, code: str) -> None:
-    """
-    Envía el email de recuperación de contraseña.
-
-    Args:
-        to_email: Email del usuario que pidió el reset.
-        code:     Código de 6 dígitos para resetear la contraseña.
-    """
+    """Email de recuperación de contraseña."""
     subject = "AulaCAL — Restablecer contraseña"
     html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #1E3A5F;">Restablecer contraseña</h2>
-        <p>Recibimos una solicitud para restablecer tu contraseña de AulaCAL.</p>
+        <p>Recibimos una solicitud para restablecer tu contraseña.</p>
         <div style="background: #F0F4F8; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1E3A5F;">{code}</span>
         </div>
         <p style="color: #666;">El código expira en {settings.EMAIL_CODE_EXPIRE_MINUTES} minutos.</p>
-        <p style="color: #999; font-size: 12px;">Si no pediste esto, ignorá este email. Tu contraseña no cambiará.</p>
     </div>
     """
-    _send_email(to_email, subject, html)
+    _send_email_smtp(to_email, subject, html)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PARTE 4: EMAILS DE NOTIFICACIONES
+# ══════════════════════════════════════════════════════════════════════════════
+
+def send_welcome_email(user_email: str, user_name: str):
+    """Email de bienvenida al registrarse."""
+    subject = "¡Bienvenido a AulaCAL! 🎓"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8">
+    <style>
+    body{{font-family:Arial,sans-serif;line-height:1.6;color:#333}}
+    .container{{max-width:600px;margin:0 auto;padding:20px}}
+    .header{{background:#4F46E5;color:white;padding:30px;text-align:center;border-radius:10px 10px 0 0}}
+    .content{{background:#f9fafb;padding:30px;border-radius:0 0 10px 10px}}
+    .button{{display:inline-block;background:#4F46E5;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;margin:20px 0}}
+    </style>
+    </head>
+    <body>
+    <div class="container">
+    <div class="header"><h1>¡Bienvenido a AulaCAL!</h1></div>
+    <div class="content">
+    <p>Hola <strong>{user_name}</strong>,</p>
+    <p>¡Gracias por registrarte en AulaCAL!</p>
+    <p style="text-align:center"><a href="http://localhost:3000/courses" class="button">Explorar Cursos</a></p>
+    <p>Saludos,<br>El equipo de AulaCAL</p>
+    </div>
+    </div>
+    </body>
+    </html>
+    """
+    text = f"Hola {user_name}, ¡Bienvenido a AulaCAL!"
+    return _send_email_smtp(user_email, subject, html, text)
+
+
+def send_payment_confirmation_email(user_email: str, user_name: str, course_title: str, amount: float):
+    """Email de confirmación de compra."""
+    subject = "Confirmación de compra - AulaCAL"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8">
+    <style>
+    body{{font-family:Arial,sans-serif;line-height:1.6;color:#333}}
+    .container{{max-width:600px;margin:0 auto;padding:20px}}
+    .header{{background:#10B981;color:white;padding:30px;text-align:center;border-radius:10px 10px 0 0}}
+    .content{{background:#f9fafb;padding:30px;border-radius:0 0 10px 10px}}
+    .button{{display:inline-block;background:#10B981;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;margin:20px 0}}
+    </style>
+    </head>
+    <body>
+    <div class="container">
+    <div class="header"><h1>✅ ¡Compra Confirmada!</h1></div>
+    <div class="content">
+    <p>Hola <strong>{user_name}</strong>,</p>
+    <p>Tu compra se procesó exitosamente.</p>
+    <h3>Detalles:</h3>
+    <p><strong>Curso:</strong> {course_title}<br><strong>Monto:</strong> ${amount:.2f} ARS</p>
+    <p style="text-align:center"><a href="http://localhost:3000/my-courses" class="button">Ver Mis Cursos</a></p>
+    <p>Saludos,<br>El equipo de AulaCAL</p>
+    </div>
+    </div>
+    </body>
+    </html>
+    """
+    text = f"Compra confirmada: {course_title} - ${amount:.2f}"
+    return _send_email_smtp(user_email, subject, html, text)
+
+
+def send_enrollment_welcome_email(user_email: str, user_name: str, course_title: str):
+    """Email de bienvenida al matricularse."""
+    subject = f"Bienvenido al curso: {course_title}"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8">
+    <style>
+    body{{font-family:Arial,sans-serif;line-height:1.6;color:#333}}
+    .container{{max-width:600px;margin:0 auto;padding:20px}}
+    .header{{background:#8B5CF6;color:white;padding:30px;text-align:center;border-radius:10px 10px 0 0}}
+    .content{{background:#f9fafb;padding:30px;border-radius:0 0 10px 10px}}
+    .button{{display:inline-block;background:#8B5CF6;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;margin:20px 0}}
+    </style>
+    </head>
+    <body>
+    <div class="container">
+    <div class="header"><h1>🎓 ¡Comenzá tu curso!</h1></div>
+    <div class="content">
+    <p>Hola <strong>{user_name}</strong>,</p>
+    <p>Ya estás matriculado en: <strong>{course_title}</strong></p>
+    <p style="text-align:center"><a href="http://localhost:3000/courses" class="button">Empezar Ahora</a></p>
+    <p>Saludos,<br>El equipo de AulaCAL</p>
+    </div>
+    </div>
+    </body>
+    </html>
+    """
+    text = f"Comenzá tu curso: {course_title}"
+    return _send_email_smtp(user_email, subject, html, text)
+
+
+def send_new_course_notification(user_email: str, user_name: str, course_title: str, course_description: str):
+    """Newsletter cuando se publica un curso nuevo."""
+    subject = f"📢 Nuevo curso: {course_title}"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8">
+    <style>
+    body{{font-family:Arial,sans-serif;line-height:1.6;color:#333}}
+    .container{{max-width:600px;margin:0 auto;padding:20px}}
+    .header{{background:#F59E0B;color:white;padding:30px;text-align:center;border-radius:10px 10px 0 0}}
+    .content{{background:#f9fafb;padding:30px;border-radius:0 0 10px 10px}}
+    .button{{display:inline-block;background:#F59E0B;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;margin:20px 0}}
+    </style>
+    </head>
+    <body>
+    <div class="container">
+    <div class="header"><h1>📢 ¡Nuevo Curso!</h1></div>
+    <div class="content">
+    <p>Hola <strong>{user_name}</strong>,</p>
+    <h2>{course_title}</h2>
+    <p>{course_description}</p>
+    <p style="text-align:center"><a href="http://localhost:3000/courses" class="button">Ver Curso</a></p>
+    <p>Saludos,<br>El equipo de AulaCAL</p>
+    </div>
+    </div>
+    </body>
+    </html>
+    """
+    text = f"Nuevo curso: {course_title}"
+    return _send_email_smtp(user_email, subject, html, text)
