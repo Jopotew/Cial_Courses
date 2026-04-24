@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    background-color: #faf9ff;
+    color: #1a1a2e;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: #c4b5fd;
+    border-radius: 99px;
+  }
+}
+
+@layer utilities {
+  /* Catalog layout */
+  .catalog-grid {
+    display: grid;
+    grid-template-columns: clamp(200px, 22%, 260px) 1fr;
+  }
+
+  /* Course detail hero layout */
+  .detail-hero {
+    display: grid;
+    grid-template-columns: 1fr clamp(280px, 36%, 380px);
+  }
+
+  /* Course detail body layout */
+  .detail-body {
+    display: grid;
+    grid-template-columns: 1fr clamp(280px, 36%, 380px);
+  }
+
+  /* Auth layout */
+  .auth-grid {
+    grid-template-columns: clamp(280px, 45%, 520px) 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+  .catalog-grid aside {
+    display: none;
+  }
+  .detail-hero,
+  .detail-body {
+    grid-template-columns: 1fr;
+  }
+}
