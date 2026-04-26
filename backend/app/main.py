@@ -22,6 +22,8 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
 
+ALLOWED_ORIGIN_REGEX = r"https://cial-courses-87vd.*\.vercel\.app"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler_service.start_scheduler()
@@ -56,6 +58,7 @@ async def log_requests(request: Request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
