@@ -84,7 +84,13 @@ app.include_router(admin.router, prefix="/api/v1")
 
 @app.get("/")
 def root():
-    return {"app": "AulaCAL", "version": "1.0.0", "status": "running"}
+    return {
+        "app": "AulaCAL",
+        "version": "1.0.0",
+        "status": "running",
+        "cors_origins": ALLOWED_ORIGINS,
+        "cors_regex": ALLOWED_ORIGIN_REGEX,
+    }
 
 
 @app.get("/health")
