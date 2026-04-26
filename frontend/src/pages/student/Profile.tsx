@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
+import { authApi } from '@/api/auth'
 import { Button, Input } from '@/components/ui'
 import { getInitials } from '@/lib/utils'
 
@@ -8,36 +9,47 @@ type Tab = 'personal' | 'password' | 'preferences'
 export function Profile() {
   const { user, login } = useAuthStore()
   const [tab, setTab] = useState<Tab>('personal')
-  const [form, setForm] = useState({ name: user?.name ?? '', email: user?.email ?? '' })
+  const [form, setForm] = useState({ name: user?.name ?? '' })
   const [passForm, setPassForm] = useState({ current: '', next: '', confirm: '' })
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [passError, setPassError] = useState('')
   const [passSaved, setPassSaved] = useState(false)
+  const [passSaving, setPassSaving] = useState(false)
 
-  function setF(k: keyof typeof form) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
-  }
   function setP(k: keyof typeof passForm) {
     return (e: React.ChangeEvent<HTMLInputElement>) => setPassForm((f) => ({ ...f, [k]: e.target.value }))
   }
 
-  function handleSavePersonal() {
-    if (!form.name.trim() || !form.email.includes('@')) return
-    if (user) {
-      login({ ...user, name: form.name, email: form.email, initials: getInitials(form.name) })
+  async function handleSavePersonal() {
+    if (!form.name.trim()) return
+    setSaving(true)
+    try {
+      const updated = await authApi.patchMe(form.name)
+      login({ ...updated, initials: getInitials(updated.name) })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
+    } finally {
+      setSaving(false)
     }
   }
 
-  function handleSavePassword() {
+  async function handleSavePassword() {
     setPassError('')
     if (passForm.current.length < 4) { setPassError('Contraseña actual incorrecta'); return }
     if (passForm.next.length < 8) { setPassError('La nueva contraseña debe tener al menos 8 caracteres'); return }
     if (passForm.next !== passForm.confirm) { setPassError('Las contraseñas no coinciden'); return }
-    setPassSaved(true)
-    setPassForm({ current: '', next: '', confirm: '' })
-    setTimeout(() => setPassSaved(false), 2500)
+    setPassSaving(true)
+    try {
+      await authApi.changePassword(passForm.current, passForm.next)
+      setPassSaved(true)
+      setPassForm({ current: '', next: '', confirm: '' })
+      setTimeout(() => setPassSaved(false), 2500)
+    } catch {
+      setPassError('Contraseña actual incorrecta')
+    } finally {
+      setPassSaving(false)
+    }
   }
 
   return (
@@ -63,6 +75,7 @@ export function Profile() {
                 {user?.name}
               </h1>
               <p className="text-sm text-white/60">{user?.email}</p>
+              <p className="text-[12px] text-white/40 mt-0.5">@{user?.username}</p>
               {user?.isAdmin && (
                 <span className="inline-block mt-2 bg-primary/50 text-primary-muted text-[11px] font-bold px-[10px] py-[3px] rounded-full tracking-[.5px]">
                   ADMINISTRADOR
@@ -101,15 +114,34 @@ export function Profile() {
             <h2 className="text-lg font-extrabold text-ink mb-6">Datos personales</h2>
             <div className="flex flex-col gap-[18px]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Nombre completo" value={form.name} onChange={setF('name')} placeholder="Tu nombre" />
-                <Input label="Correo electrónico" type="email" value={form.email} onChange={setF('email')} placeholder="tucorreo@ejemplo.com" />
+                <Input
+                  label="Nombre completo"
+                  value={form.name}
+                  onChange={(e) => setForm({ name: e.target.value })}
+                  placeholder="Tu nombre"
+                />
+                <Input
+                  label="Nombre de usuario"
+                  value={user?.username ?? ''}
+                  onChange={() => {}}
+                  placeholder="@usuario"
+                  disabled
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Profesión" value="Odontólogo/a" onChange={() => {}} placeholder="Ej: Odontólogo" />
-                <Input label="País" value="Argentina" onChange={() => {}} placeholder="Tu país" />
+                <Input
+                  label="Correo electrónico"
+                  type="email"
+                  value={user?.email ?? ''}
+                  onChange={() => {}}
+                  placeholder="tucorreo@ejemplo.com"
+                  disabled
+                />
               </div>
               <div className="flex items-center gap-3.5 mt-2 flex-wrap">
-                <Button variant="primary" onClick={handleSavePersonal}>Guardar cambios</Button>
+                <Button variant="primary" disabled={saving} onClick={handleSavePersonal}>
+                  {saving ? 'Guardando…' : 'Guardar cambios'}
+                </Button>
                 {saved && <SavedFeedback label="¡Guardado correctamente!" />}
               </div>
             </div>
@@ -132,7 +164,9 @@ export function Profile() {
                 </div>
               )}
               <div className="flex items-center gap-3.5 mt-1 flex-wrap">
-                <Button variant="primary" onClick={handleSavePassword}>Cambiar contraseña</Button>
+                <Button variant="primary" disabled={passSaving} onClick={handleSavePassword}>
+                  {passSaving ? 'Cambiando…' : 'Cambiar contraseña'}
+                </Button>
                 {passSaved && <SavedFeedback label="¡Contraseña actualizada!" />}
               </div>
             </div>

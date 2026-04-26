@@ -4,7 +4,8 @@ app/api/enrollments.py
 Endpoints del módulo de matrículas.
 
 Rutas de usuario:
-    GET /enrollments/my-courses  → mis cursos matriculados
+    GET  /enrollments/my-courses  → mis cursos matriculados
+    POST /enrollments/self        → inscribirse en curso gratuito
 
 Rutas de admin:
     POST   /enrollments          → matricular usuario
@@ -14,9 +15,10 @@ Rutas de admin:
     DELETE /enrollments/{id}     → eliminar
 """
 
+from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.core.dependencies import get_current_user, require_admin
 from app.schemas.enrollment import (
@@ -53,6 +55,38 @@ def get_my_courses(
     enrollments = enrollment_service.get_user_enrollments(user_id, active_only=active_only)
     
     return [EnrollmentWithCourseResponse.model_validate(e) for e in enrollments]
+
+
+@router.post("/self", response_model=EnrollmentResponse, status_code=status.HTTP_201_CREATED)
+def self_enroll(
+    course_id: UUID = Body(..., embed=True),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Inscribe al usuario actual en un curso gratuito.
+
+    Solo permite cursos gratuitos (price == 0). Para cursos de pago
+    usar el flujo de MercadoPago (POST /payments/create).
+    """
+    course = course_service.get_course_by_id(course_id, include_unpublished=False)
+    if course is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Curso no encontrado.",
+        )
+    if Decimal(str(course["price"])) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo es posible inscribirse directamente en cursos gratuitos.",
+        )
+
+    data = EnrollmentCreateRequest(
+        user_id=UUID(current_user["id"]),
+        course_id=course_id,
+        enrollment_type="free",
+    )
+    enrollment = enrollment_service.create_enrollment(data)
+    return EnrollmentResponse.model_validate(enrollment)
 
 
 @router.get("/check/{course_id}", response_model=dict)

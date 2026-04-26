@@ -101,6 +101,22 @@ def change_user_role( #type: ignore
     return user_service.update_user_role(user_id, data.role) #type: ignore
 
 
+@router.patch("/{user_id}/activate", response_model=UserAdminResponse)
+def activate_user(
+    user_id: UUID,
+    current_user: dict = Depends(require_admin), #type: ignore
+):
+    """Reactiva un usuario desactivado. Solo admin."""
+    if str(user_id) == current_user["id"]:
+        raise HTTPException(status_code=400, detail="No podés modificar tu propio estado.")
+
+    user = user_service.get_user_by_id(user_id) #type: ignore
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+    return user_service.activate_user(user_id) #type: ignore
+
+
 @router.delete("/{user_id}", response_model=UserDeleteResponse)
 def deactivate_user(
     user_id: UUID,

@@ -1,17 +1,17 @@
 import type { Category, Course, SaleRecord, UserRecord } from '@/types'
 
 export const categories: Category[] = [
-  { id: 1, name: 'Endodoncia',          count: 8,  color: '#7c3aed', bg: '#f5f3ff' },
-  { id: 2, name: 'Cirugía Oral',        count: 6,  color: '#0284c7', bg: '#e0f2fe' },
-  { id: 3, name: 'Estética Dental',     count: 12, color: '#db2777', bg: '#fce7f3' },
-  { id: 4, name: 'Periodoncia',         count: 5,  color: '#059669', bg: '#d1fae5' },
-  { id: 5, name: 'Rehabilitación Oral', count: 9,  color: '#b45309', bg: '#fef3c7' },
-  { id: 6, name: 'Odontopediatría',     count: 4,  color: '#7c3aed', bg: '#ede9fe' },
+  { id: '1', name: 'Endodoncia',          coursesCount: 8,  color: '#7c3aed', bg: '#f5f3ff' },
+  { id: '2', name: 'Cirugía Oral',        coursesCount: 6,  color: '#0284c7', bg: '#e0f2fe' },
+  { id: '3', name: 'Estética Dental',     coursesCount: 12, color: '#db2777', bg: '#fce7f3' },
+  { id: '4', name: 'Periodoncia',         coursesCount: 5,  color: '#059669', bg: '#d1fae5' },
+  { id: '5', name: 'Rehabilitación Oral', coursesCount: 9,  color: '#b45309', bg: '#fef3c7' },
+  { id: '6', name: 'Odontopediatría',     coursesCount: 4,  color: '#7c3aed', bg: '#ede9fe' },
 ]
 
 export const courses: Course[] = [
   {
-    id: 1,
+    id: '1',
     title: 'Endodoncia Clínica Avanzada',
     subtitle: 'Instrumentación rotatoria y obturación termoplástica',
     instructor: 'Dr. Martín Rodríguez',
@@ -20,8 +20,9 @@ export const courses: Course[] = [
     price: 12900, originalPrice: 18900,
     rating: 4.8, reviewCount: 127, students: 342,
     duration: '18h 30min', lessons: 47, level: 'Avanzado',
-    categoryId: 1, category: 'Endodoncia',
+    categoryId: '1', category: 'Endodoncia',
     featured: true, free: false, cardColor: '#7c3aed',
+    thumbnailUrl: null, isPublished: true,
     description: 'Domina las técnicas más modernas en tratamientos de conducto. Este curso abarca desde la anatomía del sistema de conductos hasta la instrumentación rotatoria y obturación termoplástica, con abundantes casos clínicos reales.',
     modules: [
       { title: 'Introducción a la Endodoncia Moderna', lessons: 5, duration: '2h 10min' },
@@ -32,7 +33,7 @@ export const courses: Course[] = [
     ],
   },
   {
-    id: 2,
+    id: '2',
     title: 'Estética Dental Integral',
     subtitle: 'Carillas, blanqueamiento y restauraciones estéticas',
     instructor: 'Dra. Laura Fernández',
@@ -41,8 +42,9 @@ export const courses: Course[] = [
     price: 9900, originalPrice: 14900,
     rating: 4.9, reviewCount: 203, students: 581,
     duration: '14h 20min', lessons: 38, level: 'Intermedio',
-    categoryId: 3, category: 'Estética Dental',
+    categoryId: '3', category: 'Estética Dental',
     featured: true, free: false, cardColor: '#db2777',
+    thumbnailUrl: null, isPublished: true,
     description: 'Aprende las técnicas más demandadas en odontología estética. Desde el blanqueamiento profesional hasta carillas de porcelana y composite, con protocolos actualizados y fotografía clínica aplicada.',
     modules: [
       { title: 'Principios de estética dental', lessons: 4, duration: '1h 30min' },
@@ -53,17 +55,18 @@ export const courses: Course[] = [
     ],
   },
   {
-    id: 3,
+    id: '3',
     title: 'Cirugía Oral Básica',
     subtitle: 'Exodoncias simples y complejas para el odontólogo general',
     instructor: 'Dr. Carlos Méndez',
     instructorInitials: 'CM',
     instructorTitle: 'Cirujano Maxilofacial · Hospital Italiano',
-    price: 0, originalPrice: 0,
+    price: 0, originalPrice: null,
     rating: 4.7, reviewCount: 89, students: 1204,
     duration: '8h 15min', lessons: 24, level: 'Básico',
-    categoryId: 2, category: 'Cirugía Oral',
+    categoryId: '2', category: 'Cirugía Oral',
     featured: true, free: true, cardColor: '#0284c7',
+    thumbnailUrl: null, isPublished: true,
     description: 'Curso gratuito de introducción a la cirugía oral. Aprende el manejo del instrumental quirúrgico, técnicas anestésicas y el protocolo completo para exodoncias simples y complejas.',
     modules: [
       { title: 'Instrumental quirúrgico', lessons: 4, duration: '1h 30min' },
@@ -73,7 +76,7 @@ export const courses: Course[] = [
     ],
   },
   {
-    id: 4,
+    id: '4',
     title: 'Periodoncia Clínica Moderna',
     subtitle: 'Diagnóstico y tratamiento periodontal integral',
     instructor: 'Dra. Ana Gómez',
@@ -82,8 +85,9 @@ export const courses: Course[] = [
     price: 11500, originalPrice: 16000,
     rating: 4.6, reviewCount: 74, students: 198,
     duration: '16h 00min', lessons: 42, level: 'Avanzado',
-    categoryId: 4, category: 'Periodoncia',
+    categoryId: '4', category: 'Periodoncia',
     featured: false, free: false, cardColor: '#059669',
+    thumbnailUrl: null, isPublished: true,
     description: 'Formación completa en periodoncia clínica. Aborda el diagnóstico, la terapia básica, cirugía periodontal y el mantenimiento a largo plazo del paciente periodontal.',
     modules: [
       { title: 'Diagnóstico periodontal', lessons: 8, duration: '3h 20min' },
@@ -93,7 +97,7 @@ export const courses: Course[] = [
     ],
   },
   {
-    id: 5,
+    id: '5',
     title: 'Rehabilitación con Prótesis Fija',
     subtitle: 'Coronas, puentes y preparaciones dentales paso a paso',
     instructor: 'Dr. Jorge Palacios',
@@ -102,8 +106,9 @@ export const courses: Course[] = [
     price: 14500, originalPrice: 21000,
     rating: 4.8, reviewCount: 156, students: 287,
     duration: '22h 45min', lessons: 58, level: 'Avanzado',
-    categoryId: 5, category: 'Rehabilitación Oral',
+    categoryId: '5', category: 'Rehabilitación Oral',
     featured: false, free: false, cardColor: '#b45309',
+    thumbnailUrl: null, isPublished: true,
     description: 'El curso más completo en prótesis fija. Desde los principios biomecánicos hasta la cementación final, con análisis detallado de preparaciones dentales, impresiones y ajuste oclusal.',
     modules: [
       { title: 'Principios de la prótesis fija', lessons: 8, duration: '3h 20min' },
@@ -114,7 +119,7 @@ export const courses: Course[] = [
     ],
   },
   {
-    id: 6,
+    id: '6',
     title: 'Odontopediatría Práctica',
     subtitle: 'Atención integral del niño: desde bebés hasta adolescentes',
     instructor: 'Dra. Sofía Castro',
@@ -123,8 +128,9 @@ export const courses: Course[] = [
     price: 8900, originalPrice: 12500,
     rating: 4.9, reviewCount: 211, students: 423,
     duration: '12h 30min', lessons: 33, level: 'Intermedio',
-    categoryId: 6, category: 'Odontopediatría',
+    categoryId: '6', category: 'Odontopediatría',
     featured: false, free: false, cardColor: '#7c3aed',
+    thumbnailUrl: null, isPublished: true,
     description: 'Formación integral en odontopediatría con enfoque en el manejo de conducta, prevención y los tratamientos más frecuentes en dentición primaria y mixta.',
     modules: [
       { title: 'Atención del bebé y primera infancia', lessons: 6, duration: '2h 20min' },
@@ -135,24 +141,24 @@ export const courses: Course[] = [
   },
 ]
 
-export const initialEnrolledIds: number[] = [1, 3]
+export const initialEnrolledIds: string[] = ['1', '3']
 
-export const initialProgress: Record<number, number> = { 1: 42, 3: 87 }
+export const initialProgress: Record<string, number> = { '1': 42, '3': 87 }
 
 export const recentSales: SaleRecord[] = [
-  { id: 1, student: 'Juan Pérez',    course: 'Endodoncia Clínica Avanzada',     amount: 12900, date: '24/04/2026', status: 'aprobado' },
-  { id: 2, student: 'Laura Sánchez', course: 'Estética Dental Integral',         amount: 9900,  date: '23/04/2026', status: 'aprobado' },
-  { id: 3, student: 'Carlos Ruiz',   course: 'Rehabilitación con Prótesis Fija', amount: 14500, date: '23/04/2026', status: 'aprobado' },
-  { id: 4, student: 'Ana Torres',    course: 'Endodoncia Clínica Avanzada',     amount: 12900, date: '22/04/2026', status: 'aprobado' },
-  { id: 5, student: 'Diego López',   course: 'Odontopediatría Práctica',         amount: 8900,  date: '22/04/2026', status: 'pendiente' },
-  { id: 6, student: 'Sofía Méndez',  course: 'Periodoncia Clínica Moderna',     amount: 11500, date: '21/04/2026', status: 'aprobado' },
+  { id: '1', student: 'Juan Pérez',    course: 'Endodoncia Clínica Avanzada',     amount: 12900, date: '24/04/2026', status: 'aprobado' },
+  { id: '2', student: 'Laura Sánchez', course: 'Estética Dental Integral',         amount: 9900,  date: '23/04/2026', status: 'aprobado' },
+  { id: '3', student: 'Carlos Ruiz',   course: 'Rehabilitación con Prótesis Fija', amount: 14500, date: '23/04/2026', status: 'aprobado' },
+  { id: '4', student: 'Ana Torres',    course: 'Endodoncia Clínica Avanzada',     amount: 12900, date: '22/04/2026', status: 'aprobado' },
+  { id: '5', student: 'Diego López',   course: 'Odontopediatría Práctica',         amount: 8900,  date: '22/04/2026', status: 'pendiente' },
+  { id: '6', student: 'Sofía Méndez',  course: 'Periodoncia Clínica Moderna',     amount: 11500, date: '21/04/2026', status: 'aprobado' },
 ]
 
 export const allUsers: UserRecord[] = [
-  { id: 1, name: 'Juan Pérez',    email: 'juan@example.com',   initials: 'JP', enrolled: 2, joined: '10/01/2026', active: true  },
-  { id: 2, name: 'Laura Sánchez', email: 'laura@example.com',  initials: 'LS', enrolled: 1, joined: '15/02/2026', active: true  },
-  { id: 3, name: 'Carlos Ruiz',   email: 'carlos@example.com', initials: 'CR', enrolled: 3, joined: '03/03/2026', active: true  },
-  { id: 4, name: 'Ana Torres',    email: 'ana@example.com',    initials: 'AT', enrolled: 1, joined: '20/03/2026', active: false },
-  { id: 5, name: 'Diego López',   email: 'diego@example.com',  initials: 'DL', enrolled: 0, joined: '01/04/2026', active: true  },
-  { id: 6, name: 'Sofía Méndez',  email: 'sofia@example.com',  initials: 'SM', enrolled: 2, joined: '10/04/2026', active: true  },
+  { id: '1', name: 'Juan Pérez',    email: 'juan@example.com',   initials: 'JP', enrolled: 2, joined: '10/01/2026', active: true  },
+  { id: '2', name: 'Laura Sánchez', email: 'laura@example.com',  initials: 'LS', enrolled: 1, joined: '15/02/2026', active: true  },
+  { id: '3', name: 'Carlos Ruiz',   email: 'carlos@example.com', initials: 'CR', enrolled: 3, joined: '03/03/2026', active: true  },
+  { id: '4', name: 'Ana Torres',    email: 'ana@example.com',    initials: 'AT', enrolled: 1, joined: '20/03/2026', active: false },
+  { id: '5', name: 'Diego López',   email: 'diego@example.com',  initials: 'DL', enrolled: 0, joined: '01/04/2026', active: true  },
+  { id: '6', name: 'Sofía Méndez',  email: 'sofia@example.com',  initials: 'SM', enrolled: 2, joined: '10/04/2026', active: true  },
 ]

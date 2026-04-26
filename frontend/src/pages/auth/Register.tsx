@@ -1,22 +1,30 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
-import { Button, Input } from '@/components/ui'
+import { Button, Input, CodeInput } from '@/components/ui'
 import { authApi } from '@/api/auth'
+import { useAuthStore } from '@/store/authStore'
 
 interface RegisterForm {
   name: string
+  username: string
   email: string
   password: string
   confirm: string
 }
 
+type Step = 'form' | 'verify'
+
 export function Register() {
   const navigate = useNavigate()
-  const [form, setForm] = useState<RegisterForm>({ name: '', email: '', password: '', confirm: '' })
+  const { login } = useAuthStore()
+  const [step, setStep] = useState<Step>('form')
+  const [form, setForm] = useState<RegisterForm>({ name: '', username: '', email: '', password: '', confirm: '' })
   const [errors, setErrors] = useState<Partial<RegisterForm>>({})
+  const [code, setCode] = useState('')
+  const [codeError, setCodeError] = useState('')
+  const [userId, setUserId] = useState('')
   const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
 
   function set(k: keyof RegisterForm) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -26,8 +34,13 @@ export function Register() {
   function validate(): Partial<RegisterForm> {
     const e: Partial<RegisterForm> = {}
     if (!form.name.trim()) e.name = 'Ingresá tu nombre'
+    if (!form.username.trim()) e.username = 'Ingresá un nombre de usuario'
+    else if (!/^[a-z0-9_]{3,}$/i.test(form.username)) e.username = 'Solo letras, números y _ (mín. 3 caracteres)'
     if (!form.email.includes('@')) e.email = 'Correo inválido'
     if (form.password.length < 8) e.password = 'Mínimo 8 caracteres'
+    else if (!/[A-Z]/.test(form.password)) e.password = 'Debe contener al menos una mayúscula'
+    else if (!/[a-z]/.test(form.password)) e.password = 'Debe contener al menos una minúscula'
+    else if (!/[0-9]/.test(form.password)) e.password = 'Debe contener al menos un número'
     if (form.password !== form.confirm) e.confirm = 'Las contraseñas no coinciden'
     return e
   }
@@ -39,27 +52,66 @@ export function Register() {
     setErrors({})
     setLoading(true)
     try {
-      await authApi.register(form.name, form.email, form.password)
-      setDone(true)
-    } finally { setLoading(false) }
+      const res = await authApi.register(form.name, form.username, form.email, form.password)
+      setUserId(res.user_id)
+      setStep('verify')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if (msg?.includes('username')) setErrors({ username: 'Este nombre de usuario ya está en uso' })
+      else if (msg?.includes('email')) setErrors({ email: 'Este correo ya está registrado' })
+      else setErrors({ email: 'Error al crear la cuenta. Intentá de nuevo.' })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (done) {
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault()
+    if (code.length < 4) { setCodeError('Código inválido'); return }
+    setCodeError('')
+    setLoading(true)
+    try {
+      await authApi.verifyEmail(userId, code)
+      const user = await authApi.me()
+      login(user)
+      navigate('/')
+    } catch {
+      setCodeError('Código incorrecto o expirado')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResend() {
+    try {
+      await authApi.resendVerification(form.email)
+    } catch { /* silent */ }
+  }
+
+  if (step === 'verify') {
     return (
-      <AuthLayout title="¡Revisá tu correo!" subtitle={`Enviamos un enlace de verificación a ${form.email}`}>
-        <div className="text-center flex flex-col gap-5 items-center">
-          <div className="w-[72px] h-[72px] rounded-full bg-accent-light flex items-center justify-center">
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-              <path d="M8 18l7 7 13-14" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+      <AuthLayout title="Verificá tu correo" subtitle={`Enviamos un código de 6 dígitos a ${form.email}`}>
+        <form onSubmit={handleVerify} className="flex flex-col gap-4">
+          <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl p-4 text-center">
+            <p className="text-[13px] text-[#166534] leading-relaxed">
+              Ingresá el código para activar tu cuenta.
+              Revisá también tu carpeta de spam.
+            </p>
           </div>
-          <p className="text-sm text-slate-500 leading-relaxed">
-            Una vez verificado, podés iniciar sesión y comenzar tu aprendizaje.
-          </p>
-          <Button variant="primary" fullWidth onClick={() => navigate('/login')}>
-            Ir al inicio de sesión
+          <CodeInput value={code} onChange={setCode} error={codeError} />
+          <Button variant="primary" fullWidth size="lg" type="submit" disabled={loading}>
+            {loading ? 'Verificando…' : 'Activar cuenta'}
           </Button>
-        </div>
+          <p className="text-[13px] text-slate-500 text-center">
+            ¿No recibiste el código?{' '}
+            <span
+              onClick={handleResend}
+              className="text-primary font-semibold cursor-pointer hover:underline"
+            >
+              Reenviar
+            </span>
+          </p>
+        </form>
       </AuthLayout>
     )
   }
@@ -74,6 +126,13 @@ export function Register() {
           placeholder="Dr. Juan Pérez"
           error={errors.name}
           autoFocus
+        />
+        <Input
+          label="Nombre de usuario"
+          value={form.username}
+          onChange={set('username')}
+          placeholder="drjuanperez"
+          error={errors.username}
         />
         <Input
           label="Correo electrónico"

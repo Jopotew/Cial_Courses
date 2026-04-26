@@ -196,3 +196,12 @@ def deactivate_user(user_id: UUID) -> dict:
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", str(user_id)).execute()
     return result.data[0]
+
+
+def activate_user(user_id: UUID) -> dict:
+    """Reactiva un usuario previamente desactivado (is_active=True)."""
+    result = _client().table("users").update({
+        "is_active": True,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", str(user_id)).execute()
+    return result.data[0]

@@ -4,6 +4,8 @@ import type { Course } from '@/types'
 import { Button } from '@/components/ui'
 import { formatPrice } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
+import { paymentsApi } from '@/api/payments'
+import { enrollmentsApi } from '@/api/enrollments'
 
 interface PurchaseCardProps {
   course: Course
@@ -11,8 +13,8 @@ interface PurchaseCardProps {
 }
 
 const includes = [
-  ['▶', (c: Course) => `${c.duration} de video`],
-  ['◉', (c: Course) => `${c.lessons} clases`],
+  ['▶', (c: Course) => `${c.duration || 'Acceso'} de video`],
+  ['◉', (c: Course) => `${c.lessons || 'Múltiples'} clases`],
   ['∞', () => 'Acceso de por vida'],
   ['✦', () => 'Certificado de finalización'],
 ] as const
@@ -24,17 +26,30 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
 
   const isEnrolled = enrolledCourseIds.includes(course.id)
   const discount =
-    course.originalPrice > course.price
-      ? Math.round((1 - course.price / course.originalPrice) * 100)
+    (course.originalPrice ?? 0) > course.price
+      ? Math.round((1 - course.price / course.originalPrice!) * 100)
       : 0
 
-  function handleBuy() {
+  async function handleBuy() {
     if (!isAuthenticated) { navigate('/login'); return }
     setPurchasing(true)
-    setTimeout(() => {
-      enroll(course.id)
+    try {
+      if (course.free) {
+        await enrollmentsApi.enroll(course.id)
+        enroll(course.id)
+      } else {
+        const { sandbox_init_point } = await paymentsApi.create(course.id)
+        if (sandbox_init_point === '#mock-payment') {
+          enroll(course.id)
+        } else {
+          window.location.href = sandbox_init_point
+        }
+      }
+    } catch {
+      // payment error — leave purchasing=false so button resets
+    } finally {
       setPurchasing(false)
-    }, 1400)
+    }
   }
 
   return (
@@ -81,9 +96,9 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
               >
                 {formatPrice(course.price)}
               </span>
-              {!course.free && course.originalPrice > course.price && (
+              {!course.free && (course.originalPrice ?? 0) > course.price && (
                 <span className="text-base text-slate-400 line-through">
-                  {formatPrice(course.originalPrice)}
+                  {formatPrice(course.originalPrice!)}
                 </span>
               )}
             </div>

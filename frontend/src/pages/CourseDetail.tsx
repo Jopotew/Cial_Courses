@@ -1,14 +1,28 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { courses } from '@/data/mock'
+import { useQuery } from '@tanstack/react-query'
+import { coursesApi } from '@/api/courses'
 import { Badge, StarRating } from '@/components/ui'
 import { PurchaseCard } from '@/components/shared/PurchaseCard'
 
 export function CourseDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const course = courses.find((c) => c.id === Number(id)) ?? courses[0]
   const [openModule, setOpenModule] = useState<number | null>(null)
+
+  const { data: course, isLoading } = useQuery({
+    queryKey: ['course', id],
+    queryFn: () => coursesApi.get(id!),
+    enabled: !!id,
+  })
+
+  if (isLoading || !course) {
+    return (
+      <div className="min-h-screen bg-canvas flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -37,7 +51,7 @@ export function CourseDetail() {
             </div>
 
             <Badge variant={course.free ? 'green' : 'default'}>
-              {course.free ? 'Gratis' : course.level}
+              {course.free ? 'Gratis' : course.level ?? 'General'}
             </Badge>
 
             <h1
@@ -46,7 +60,9 @@ export function CourseDetail() {
             >
               {course.title}
             </h1>
-            <p className="text-base text-white/75 leading-relaxed mb-5">{course.subtitle}</p>
+            {course.subtitle && (
+              <p className="text-base text-white/75 leading-relaxed mb-5">{course.subtitle}</p>
+            )}
 
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
@@ -58,19 +74,29 @@ export function CourseDetail() {
                 </div>
                 <div>
                   <p className="text-[13px] text-white font-semibold">{course.instructor}</p>
-                  <p className="text-[11px] text-white/55">{course.instructorTitle}</p>
+                  {course.instructorTitle && (
+                    <p className="text-[11px] text-white/55">{course.instructorTitle}</p>
+                  )}
                 </div>
               </div>
-              <span className="text-white/30">|</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-amber-400">{course.rating}</span>
-                <StarRating rating={course.rating} small />
-                <span className="text-[13px] text-white/55">({course.reviewCount} reseñas)</span>
-              </div>
-              <span className="text-white/30">|</span>
-              <span className="text-[13px] text-white/60">
-                {course.students.toLocaleString('es-AR')} estudiantes
-              </span>
+              {course.rating > 0 && (
+                <>
+                  <span className="text-white/30">|</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-amber-400">{course.rating}</span>
+                    <StarRating rating={course.rating} small />
+                    <span className="text-[13px] text-white/55">({course.reviewCount} reseñas)</span>
+                  </div>
+                </>
+              )}
+              {course.students > 0 && (
+                <>
+                  <span className="text-white/30">|</span>
+                  <span className="text-[13px] text-white/60">
+                    {course.students.toLocaleString('es-AR')} estudiantes
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -89,80 +115,84 @@ export function CourseDetail() {
             <p className="text-[15px] text-gray-700 leading-[1.7]">{course.description}</p>
             <div className="flex gap-5 mt-5 flex-wrap">
               {[
-                [`${course.lessons} clases`, 'Clases en video'],
-                [course.duration, 'Duración total'],
+                [course.lessons ? `${course.lessons} clases` : null, 'Clases en video'],
+                [course.duration || null, 'Duración total'],
                 [course.level, 'Nivel'],
-              ].map(([v, l]) => (
-                <div
-                  key={l}
-                  className="text-center flex-1 min-w-[100px] bg-primary-light rounded-xl py-3.5 px-2.5"
-                >
-                  <p className="text-[18px] font-extrabold text-primary">{v}</p>
-                  <p className="text-xs text-slate-500 mt-1">{l}</p>
-                </div>
-              ))}
+              ]
+                .filter(([v]) => v != null)
+                .map(([v, l]) => (
+                  <div
+                    key={l}
+                    className="text-center flex-1 min-w-[100px] bg-primary-light rounded-xl py-3.5 px-2.5"
+                  >
+                    <p className="text-[18px] font-extrabold text-primary">{v}</p>
+                    <p className="text-xs text-slate-500 mt-1">{l}</p>
+                  </div>
+                ))}
             </div>
           </ContentSection>
 
           {/* Curriculum */}
-          <ContentSection title={`Contenido del curso · ${course.lessons} clases · ${course.duration}`}>
-            <div className="flex flex-col gap-2">
-              {course.modules.map((mod, i) => (
-                <div key={i} className="border-[1.5px] border-[#e2d9f7] rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setOpenModule(openModule === i ? null : i)}
-                    className="w-full flex items-center justify-between px-[18px] py-3.5 border-none cursor-pointer font-sans transition-colors text-left"
-                    style={{ background: openModule === i ? '#f5f3ff' : '#fff' }}
-                  >
-                    <span className="text-sm font-semibold text-ink">{mod.title}</span>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-xs text-slate-400">
-                        {mod.lessons} clases · {mod.duration}
-                      </span>
-                      <svg
-                        width="16" height="16" viewBox="0 0 16 16" fill="none"
-                        stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"
-                        style={{
-                          transform: openModule === i ? 'rotate(180deg)' : 'none',
-                          transition: 'transform .2s',
-                        }}
-                      >
-                        <path d="M4 6l4 4 4-4" />
-                      </svg>
-                    </div>
-                  </button>
-                  {openModule === i && (
-                    <div className="px-[18px] py-3 bg-canvas border-t border-[#f0ebfd]">
-                      {Array.from({ length: Math.min(mod.lessons, 4) }).map((_, j) => (
-                        <div
-                          key={j}
-                          className="flex items-center gap-3 py-2 border-b border-[#f0ebfd] last:border-0"
+          {course.modules.length > 0 && (
+            <ContentSection title={`Contenido del curso · ${course.lessons} clases · ${course.duration}`}>
+              <div className="flex flex-col gap-2">
+                {course.modules.map((mod, i) => (
+                  <div key={i} className="border-[1.5px] border-[#e2d9f7] rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setOpenModule(openModule === i ? null : i)}
+                      className="w-full flex items-center justify-between px-[18px] py-3.5 border-none cursor-pointer font-sans transition-colors text-left"
+                      style={{ background: openModule === i ? '#f5f3ff' : '#fff' }}
+                    >
+                      <span className="text-sm font-semibold text-ink">{mod.title}</span>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className="text-xs text-slate-400">
+                          {mod.lessons} clases · {mod.duration}
+                        </span>
+                        <svg
+                          width="16" height="16" viewBox="0 0 16 16" fill="none"
+                          stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"
+                          style={{
+                            transform: openModule === i ? 'rotate(180deg)' : 'none',
+                            transition: 'transform .2s',
+                          }}
                         >
-                          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                            <circle cx="9" cy="9" r="8" fill="#ede9fe" />
-                            <path d="M7 6.5l5 2.5-5 2.5V6.5z" fill="#7c3aed" />
-                          </svg>
-                          <span className="text-[13px] text-gray-700">
-                            Clase {j + 1}: {mod.title} — parte {j + 1}
-                          </span>
-                          {j === 0 && course.free && (
-                            <span className="ml-auto text-[11px] text-accent font-semibold">
-                              Vista previa
+                          <path d="M4 6l4 4 4-4" />
+                        </svg>
+                      </div>
+                    </button>
+                    {openModule === i && (
+                      <div className="px-[18px] py-3 bg-canvas border-t border-[#f0ebfd]">
+                        {Array.from({ length: Math.min(mod.lessons, 4) }).map((_, j) => (
+                          <div
+                            key={j}
+                            className="flex items-center gap-3 py-2 border-b border-[#f0ebfd] last:border-0"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                              <circle cx="9" cy="9" r="8" fill="#ede9fe" />
+                              <path d="M7 6.5l5 2.5-5 2.5V6.5z" fill="#7c3aed" />
+                            </svg>
+                            <span className="text-[13px] text-gray-700">
+                              Clase {j + 1}: {mod.title} — parte {j + 1}
                             </span>
-                          )}
-                        </div>
-                      ))}
-                      {mod.lessons > 4 && (
-                        <p className="text-xs text-slate-400 pt-2.5">
-                          + {mod.lessons - 4} clases más
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </ContentSection>
+                            {j === 0 && course.free && (
+                              <span className="ml-auto text-[11px] text-accent font-semibold">
+                                Vista previa
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        {mod.lessons > 4 && (
+                          <p className="text-xs text-slate-400 pt-2.5">
+                            + {mod.lessons - 4} clases más
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </ContentSection>
+          )}
         </div>
 
         {/* Purchase card sticky on desktop (right column) */}

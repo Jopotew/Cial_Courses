@@ -61,6 +61,10 @@ class CategoryResponse(BaseModel):
     id: UUID
     name: str
     description: str | None = None
+    courses_count: int = Field(
+        default=0,
+        description="Cantidad de cursos publicados en esta categoría",
+    )
     created_at: datetime
     updated_at: datetime
 

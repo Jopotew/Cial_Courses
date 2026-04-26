@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import type { Course } from '@/types'
 import { Badge, StarRating } from '@/components/ui'
 import { formatPrice } from '@/lib/utils'
-import { categories } from '@/data/mock'
 
 interface CourseCardProps {
   course: Course
@@ -13,7 +12,6 @@ interface CourseCardProps {
 export function CourseCard({ course, enrolled }: CourseCardProps) {
   const [hov, setHov] = useState(false)
   const navigate = useNavigate()
-  const cat = categories.find((c) => c.id === course.categoryId)
 
   return (
     <div
@@ -68,7 +66,7 @@ export function CourseCard({ course, enrolled }: CourseCardProps) {
       <div className="px-[18px] pt-4 pb-[18px] flex-1 flex flex-col gap-2">
         <p
           className="text-[11px] font-semibold uppercase tracking-[.5px]"
-          style={{ color: cat?.color ?? '#7c3aed' }}
+          style={{ color: course.cardColor }}
         >
           {course.category}
         </p>
@@ -91,9 +89,9 @@ export function CourseCard({ course, enrolled }: CourseCardProps) {
           >
             {formatPrice(course.price)}
           </span>
-          {!course.free && course.originalPrice > course.price && (
+          {!course.free && (course.originalPrice ?? 0) > course.price && (
             <span className="text-[13px] text-slate-400 line-through">
-              {formatPrice(course.originalPrice)}
+              {formatPrice(course.originalPrice!)}
             </span>
           )}
         </div>

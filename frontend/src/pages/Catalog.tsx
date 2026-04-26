@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { courses, categories } from '@/data/mock'
+import { useQuery } from '@tanstack/react-query'
+import { coursesApi } from '@/api/courses'
+import { categoriesApi } from '@/api/categories'
 import { CourseCard } from '@/components/shared/CourseCard'
 import { useAuthStore } from '@/store/authStore'
 
@@ -9,11 +11,14 @@ export function Catalog() {
   const { isAuthenticated, enrolledCourseIds } = useAuthStore()
 
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
-  const [activeCat, setActiveCat] = useState<number | null>(
-    searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : null,
+  const [activeCat, setActiveCat] = useState<string | null>(
+    searchParams.get('categoryId') ?? null,
   )
   const [level, setLevel] = useState('')
   const [sort, setSort] = useState('rating')
+
+  const { data: courses = [] } = useQuery({ queryKey: ['courses'], queryFn: coursesApi.list })
+  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
 
   function updateSearch(val: string) {
     setSearch(val)
@@ -22,10 +27,10 @@ export function Catalog() {
     setSearchParams(next, { replace: true })
   }
 
-  function updateCat(id: number | null) {
+  function updateCat(id: string | null) {
     setActiveCat(id)
     const next = new URLSearchParams(searchParams)
-    if (id != null) next.set('categoryId', String(id)); else next.delete('categoryId')
+    if (id != null) next.set('categoryId', id); else next.delete('categoryId')
     setSearchParams(next, { replace: true })
   }
 
@@ -38,7 +43,7 @@ export function Catalog() {
       list = list.filter(
         (c) =>
           c.title.toLowerCase().includes(q) ||
-          c.category.toLowerCase().includes(q) ||
+          (c.category ?? '').toLowerCase().includes(q) ||
           c.instructor.toLowerCase().includes(q),
       )
     }
@@ -47,7 +52,7 @@ export function Catalog() {
     if (sort === 'price_asc') list.sort((a, b) => a.price - b.price)
     if (sort === 'price_desc') list.sort((a, b) => b.price - a.price)
     return list
-  }, [activeCat, level, search, sort])
+  }, [courses, activeCat, level, search, sort])
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -96,7 +101,7 @@ export function Catalog() {
               <FilterChip
                 key={cat.id}
                 label={cat.name}
-                count={cat.count}
+                count={cat.coursesCount}
                 active={activeCat === cat.id}
                 color={cat.color}
                 onClick={() => updateCat(activeCat === cat.id ? null : cat.id)}

@@ -5,49 +5,50 @@ import { Button, Input, CodeInput } from '@/components/ui'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
 
-type Step = 'email' | 'password' | 'verify'
+type Step = 'credentials' | 'verify'
 
 export function Login() {
   const navigate = useNavigate()
   const { login } = useAuthStore()
-  const [step, setStep] = useState<Step>('email')
+  const [step, setStep] = useState<Step>('credentials')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
+  const [userId, setUserId] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const titles: Record<Step, string> = {
-    email: 'Iniciá sesión para continuar',
-    password: 'Ingresá tu contraseña',
+    credentials: 'Iniciá sesión para continuar',
     verify: 'Verificación en dos pasos',
   }
   const subtitles: Record<Step, string> = {
-    email: 'Accedé a tu experiencia de aprendizaje',
-    password: email,
+    credentials: 'Accedé a tu experiencia de aprendizaje',
     verify: `Enviamos un código a ${email}`,
   }
 
-  async function handleEmail(e: React.FormEvent) {
+  async function handleCredentials(e: React.FormEvent) {
     e.preventDefault()
     if (!email.includes('@')) { setError('Ingresá un correo válido'); return }
-    setError('')
-    setLoading(true)
-    try {
-      await authApi.sendLoginEmail(email)
-      setStep('password')
-    } finally { setLoading(false) }
-  }
-
-  async function handlePassword(e: React.FormEvent) {
-    e.preventDefault()
     if (password.length < 4) { setError('Contraseña incorrecta'); return }
     setError('')
     setLoading(true)
     try {
-      await authApi.verifyPassword(email, password)
-      setStep('verify')
-    } finally { setLoading(false) }
+      const res = await authApi.login(email, password)
+      localStorage.setItem('access_token', res.access_token)
+      if (!res.requires_2fa) {
+        const user = await authApi.me()
+        login(user)
+        navigate('/')
+      } else {
+        setUserId(res.user_id)
+        setStep('verify')
+      }
+    } catch {
+      setError('Credenciales incorrectas')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleVerify(e: React.FormEvent) {
@@ -56,27 +57,49 @@ export function Login() {
     setError('')
     setLoading(true)
     try {
-      const user = await authApi.verify2FA(email, code)
+      const user = await authApi.verify2FA(userId, code)
       login(user)
       navigate('/')
-    } finally { setLoading(false) }
+    } catch {
+      setError('Código incorrecto o expirado')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResend() {
+    try {
+      await authApi.resendVerification(email)
+    } catch { /* silent */ }
   }
 
   return (
     <AuthLayout title={titles[step]} subtitle={subtitles[step]}>
-      {step === 'email' && (
-        <form onSubmit={handleEmail} className="flex flex-col gap-4">
+      {step === 'credentials' && (
+        <form onSubmit={handleCredentials} className="flex flex-col gap-4">
           <Input
             label="Correo electrónico"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="tunombre@ejemplo.com"
-            error={error}
             autoFocus
           />
+          <Input
+            label="Contraseña"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            error={error}
+          />
+          <div className="text-right">
+            <span className="text-[13px] text-primary cursor-pointer font-medium hover:underline">
+              ¿Olvidaste tu contraseña?
+            </span>
+          </div>
           <Button variant="primary" fullWidth size="lg" type="submit" disabled={loading}>
-            {loading ? 'Verificando…' : 'Continuar'}
+            {loading ? 'Verificando…' : 'Iniciar sesión'}
           </Button>
           <Divider />
           <p className="text-sm text-slate-500 text-center">
@@ -88,41 +111,6 @@ export function Login() {
               Registrate
             </span>
           </p>
-        </form>
-      )}
-
-      {step === 'password' && (
-        <form onSubmit={handlePassword} className="flex flex-col gap-4">
-          <div className="bg-primary-light rounded-[10px] px-4 py-2.5 flex items-center gap-2.5">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" fill="#7c3aed" />
-              <path d="M5.5 8a2.5 2.5 0 1 0 5 0 2.5 2.5 0 0 0-5 0z" fill="#fff" />
-            </svg>
-            <span className="text-[13px] text-primary font-medium flex-1">{email}</span>
-            <span
-              onClick={() => { setStep('email'); setError('') }}
-              className="text-xs text-slate-400 cursor-pointer hover:text-slate-600"
-            >
-              Cambiar
-            </span>
-          </div>
-          <Input
-            label="Contraseña"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            error={error}
-            autoFocus
-          />
-          <div className="text-right">
-            <span className="text-[13px] text-primary cursor-pointer font-medium hover:underline">
-              ¿Olvidaste tu contraseña?
-            </span>
-          </div>
-          <Button variant="primary" fullWidth size="lg" type="submit" disabled={loading}>
-            {loading ? 'Verificando…' : 'Iniciar sesión'}
-          </Button>
         </form>
       )}
 
@@ -140,7 +128,10 @@ export function Login() {
           </Button>
           <p className="text-[13px] text-slate-500 text-center">
             ¿No recibiste el código?{' '}
-            <span className="text-primary font-semibold cursor-pointer hover:underline">
+            <span
+              onClick={handleResend}
+              className="text-primary font-semibold cursor-pointer hover:underline"
+            >
               Reenviar
             </span>
           </p>

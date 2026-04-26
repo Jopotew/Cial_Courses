@@ -1,7 +1,9 @@
 export interface Category {
-  id: number
+  id: string             // UUID
   name: string
-  count: number
+  description?: string | null
+  coursesCount: number   // courses_count del backend
+  // Solo frontend — paleta visual asignada en el mapper
   color: string
   bg: string
 }
@@ -13,61 +15,63 @@ export interface CourseModule {
 }
 
 export interface Course {
-  id: number
+  id: string             // UUID
   title: string
-  subtitle: string
-  instructor: string
-  instructorInitials: string
-  instructorTitle: string
+  subtitle: string | null
+  description: string
+  categoryId: string     // UUID
+  category: string | null
+  instructor: string     // instructor_name
+  instructorInitials: string  // calculado en frontend
+  instructorTitle: string | null
   price: number
-  originalPrice: number
+  originalPrice: number | null
+  level: 'Básico' | 'Intermedio' | 'Avanzado' | null
+  thumbnailUrl: string | null
+  isPublished: boolean
+  // Calculados en frontend
+  free: boolean          // price === 0
+  cardColor: string      // paleta asignada por categoría
+  // Diferidos — sin sistema de reviews todavía
   rating: number
   reviewCount: number
   students: number
+  // Diferidos — se reemplazarán por videos del backend
   duration: string
   lessons: number
-  level: 'Básico' | 'Intermedio' | 'Avanzado'
-  categoryId: number
-  category: string
-  featured: boolean
-  free: boolean
-  cardColor: string
-  description: string
   modules: CourseModule[]
+  featured: boolean
 }
 
-export interface MockUser {
-  name: string
+export interface AuthUser {
+  id: string             // UUID
+  name: string           // full_name
   email: string
-  initials: string
-  isAdmin: boolean
+  username: string
+  initials: string       // calculado en frontend
+  isAdmin: boolean       // role === 1
 }
 
 export interface SaleRecord {
-  id: number
-  student: string
-  course: string
+  id: string             // UUID
+  student: string        // user_name o user_email
+  course: string         // course_title
   amount: number
-  date: string
+  date: string           // created_at formateado
   status: 'aprobado' | 'pendiente' | 'rechazado'
 }
 
 export interface UserRecord {
-  id: number
-  name: string
+  id: string             // UUID
+  name: string           // full_name
   email: string
-  initials: string
-  enrolled: number
-  joined: string
-  active: boolean
+  initials: string       // calculado en frontend
+  enrolled: number       // 0 por ahora, sin conteo en backend
+  joined: string         // created_at formateado
+  active: boolean        // is_active
 }
 
-export interface AuthUser {
-  name: string
-  email: string
-  initials: string
-  isAdmin: boolean
-}
+// ── Login flow ────────────────────────────────────────────────────────────────
 
 export interface LoginStepEmail {
   step: 'email'
@@ -79,15 +83,20 @@ export interface LoginStepPassword {
 export interface LoginStepVerify {
   step: 'verify'
   email: string
+  userId: string         // UUID — requerido para POST /auth/verify-2fa
 }
 export type LoginFlow = LoginStepEmail | LoginStepPassword | LoginStepVerify
 
+// ── Admin forms ───────────────────────────────────────────────────────────────
+
 export interface CourseFormData {
   title: string
+  subtitle: string
   instructor: string
+  instructorTitle: string
   category: string
-  categoryId: number
-  level: 'Básico' | 'Intermedio' | 'Avanzado'
+  categoryId: string     // UUID
+  level: 'Básico' | 'Intermedio' | 'Avanzado' | ''
   price: string
   originalPrice: string
   description: string

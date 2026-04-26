@@ -67,13 +67,31 @@ def get_category_by_name(name: str) -> Optional[dict]:
 
 def get_all_categories() -> list[dict]:
     """
-    Retorna todas las categorías ordenadas por nombre.
+    Retorna todas las categorías ordenadas por nombre, con el conteo de cursos publicados.
 
     Returns:
         Lista de diccionarios con todas las categorías.
     """
     result = _client().table("categories").select("*").order("name").execute()
-    return result.data
+    categories = result.data
+
+    # Obtener conteo de cursos publicados por categoría en una sola query
+    counts_result = (
+        _client()
+        .table("courses")
+        .select("category_id")
+        .eq("is_published", True)
+        .execute()
+    )
+    counts: dict[str, int] = {}
+    for row in counts_result.data:
+        cid = row["category_id"]
+        counts[cid] = counts.get(cid, 0) + 1
+
+    for cat in categories:
+        cat["courses_count"] = counts.get(cat["id"], 0)
+
+    return categories
 
 
 def search_categories(search: str) -> list[dict]:

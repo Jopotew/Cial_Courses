@@ -93,15 +93,17 @@ class PaymentResponse(BaseModel):
 
 
 class PaymentListResponse(BaseModel):
-    """Lista de pagos con información del curso"""
-    
+    """Lista de pagos con información del curso y del usuario"""
+
     model_config = ConfigDict(
         from_attributes=True,
         populate_by_name=True,
     )
-    
+
     id: UUID
     user_id: UUID
+    user_name: str | None = None
+    user_email: str | None = None
     course_id: UUID | None = None
     course_title: str | None = None
     amount: Decimal

@@ -1,36 +1,38 @@
 import { useNavigate } from 'react-router-dom'
-import { recentSales, allUsers, courses } from '@/data/mock'
+import { useQuery } from '@tanstack/react-query'
+import { adminApi } from '@/api/admin'
 import { Button, Badge } from '@/components/ui'
+import { formatPrice } from '@/lib/utils'
 
 export function AdminOverview() {
   const navigate = useNavigate()
-  const totalRevenue = recentSales
-    .filter((s) => s.status === 'aprobado')
-    .reduce((acc, s) => acc + s.amount, 0)
 
-  const stats = [
+  const { data: stats } = useQuery({ queryKey: ['admin-stats'], queryFn: adminApi.getStats })
+  const { data: sales = [] } = useQuery({ queryKey: ['admin-sales'], queryFn: adminApi.getSales })
+
+  const statCards = [
     {
       label: 'Usuarios totales',
-      value: allUsers.length,
-      sub: `${allUsers.filter((u) => u.active).length} activos`,
+      value: stats?.totalUsers ?? '—',
+      sub: `${stats?.totalUsers ?? 0} registrados`,
       color: '#7c3aed',
     },
     {
       label: 'Cursos publicados',
-      value: courses.length,
-      sub: `${courses.filter((c) => c.free).length} gratuito`,
+      value: stats?.activeCourses ?? '—',
+      sub: 'En la plataforma',
       color: '#059669',
     },
     {
       label: 'Matrículas activas',
-      value: 14,
-      sub: 'Este mes',
+      value: stats?.enrollments ?? '—',
+      sub: 'Total acumulado',
       color: '#0284c7',
     },
     {
-      label: 'Ingresos (últimos 7d)',
-      value: '$' + totalRevenue.toLocaleString('es-AR'),
-      sub: `${recentSales.filter((s) => s.status === 'aprobado').length} ventas`,
+      label: 'Ingresos totales',
+      value: stats ? formatPrice(stats.revenue) : '—',
+      sub: `${sales.filter((s) => s.status === 'aprobado').length} ventas aprobadas`,
       color: '#b45309',
     },
   ]
@@ -46,7 +48,7 @@ export function AdminOverview() {
 
       {/* Stats */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4 mb-8">
-        {stats.map((s) => (
+        {statCards.map((s) => (
           <div key={s.label} className="bg-white rounded-2xl px-[22px] py-5 border border-[#f0ebfd] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
             <div className="flex items-center gap-3 mb-3.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
@@ -81,7 +83,7 @@ export function AdminOverview() {
               </tr>
             </thead>
             <tbody>
-              {recentSales.map((sale, i) => (
+              {sales.map((sale, i) => (
                 <tr
                   key={sale.id}
                   className="border-t border-[#f0ebfd]"
@@ -90,7 +92,7 @@ export function AdminOverview() {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-avatar-grad flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
-                        {sale.student.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+                        {sale.student.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <span className="text-sm font-semibold text-ink whitespace-nowrap">
                         {sale.student}
@@ -103,13 +105,13 @@ export function AdminOverview() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-sm font-bold text-ink whitespace-nowrap">
-                    ${sale.amount.toLocaleString('es-AR')}
+                    {formatPrice(sale.amount)}
                   </td>
                   <td className="px-5 py-3.5 text-[13px] text-slate-500 whitespace-nowrap">
                     {sale.date}
                   </td>
                   <td className="px-5 py-3.5">
-                    <Badge variant={sale.status === 'aprobado' ? 'green' : 'default'}>
+                    <Badge variant={sale.status === 'aprobado' ? 'green' : 'gray'}>
                       {sale.status}
                     </Badge>
                   </td>

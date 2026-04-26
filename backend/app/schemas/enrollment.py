@@ -2,9 +2,11 @@
 app/schemas/enrollment.py
 --------------------------
 Schemas para el módulo de matrículas.
+ACTUALIZADO: EnrollmentWithCourseResponse ahora incluye todos los campos del curso
 """
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -77,13 +79,19 @@ class EnrollmentResponse(BaseModel):
 
 
 class EnrollmentWithCourseResponse(BaseModel):
-    """Respuesta de matrícula con información del curso"""
+    """
+    Respuesta de matrícula con información COMPLETA del curso.
+    
+    Incluye TODOS los campos que el frontend necesita para renderizar
+    las cards de progreso en el dashboard.
+    """
 
     model_config = ConfigDict(
         from_attributes=True,
         populate_by_name=True,
     )
 
+    # Campos de la matrícula
     id: UUID
     user_id: UUID
     course_id: UUID
@@ -94,11 +102,33 @@ class EnrollmentWithCourseResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    # Información del curso
-    course_title: str | None = None
-    course_description: str | None = None
-    course_thumbnail_url: str | None = None
-    course_instructor: str | None = None
+    # ── Información COMPLETA del curso ──────────────────────────────────────
+    
+    # Básicos
+    title: str
+    subtitle: str | None = None
+    description: str
+    
+    # Instructor
+    instructor_name: str
+    instructor_title: str | None = None
+    
+    # Precio
+    price: Decimal
+    original_price: Decimal | None = None
+    
+    # Categoría
+    category_id: UUID
+    category_name: str
+    
+    # Metadata
+    level: str = "basico"
+    thumbnail_url: str | None = None
+    
+    # ── Progreso (se puede agregar después) ─────────────────────────────────
+    # progress_percentage: float | None = None
+    # completed_lessons: int | None = None
+    # total_lessons: int | None = None
 
 
 class EnrollmentDeleteResponse(BaseModel):

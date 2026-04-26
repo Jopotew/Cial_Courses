@@ -1,64 +1,46 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { courses as initialCourses, categories } from '@/data/mock'
-import type { Course, CourseFormData } from '@/types'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { coursesApi } from '@/api/courses'
+import { categoriesApi } from '@/api/categories'
+import type { Course, Category, CourseFormData } from '@/types'
 import { Badge, Button, Input, Modal, FormSelect } from '@/components/ui'
 import { formatPrice } from '@/lib/utils'
 
 export function AdminCourses() {
   const navigate = useNavigate()
-  const [courseList, setCourseList] = useState<Course[]>([...initialCourses])
+  const qc = useQueryClient()
   const [modal, setModal] = useState<Course | 'new' | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
-  function handleDelete(id: number) {
-    setCourseList((prev) => prev.filter((c) => c.id !== id))
-    setDeleteConfirm(null)
-  }
+  const { data: courseList = [] } = useQuery({ queryKey: ['courses'], queryFn: coursesApi.list })
+  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
 
-  function handleSave(data: CourseFormData & { id?: number }) {
+  const createMutation = useMutation({
+    mutationFn: (data: CourseFormData) => coursesApi.create(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['courses'] }); setModal(null) },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CourseFormData> }) =>
+      coursesApi.update(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['courses'] }); setModal(null) },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => coursesApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['courses'] }); setDeleteConfirm(null) },
+  })
+
+  function handleSave(data: CourseFormData & { id?: string }) {
     if (data.id) {
-      setCourseList((prev) =>
-        prev.map((c) =>
-          c.id === data.id
-            ? {
-                ...c,
-                ...data,
-                price: Number(data.price),
-                originalPrice: Number(data.originalPrice),
-                free: Number(data.price) === 0,
-              }
-            : c,
-        ),
-      )
+      updateMutation.mutate({ id: data.id, data })
     } else {
-      const newCourse: Course = {
-        id: Date.now(),
-        title: data.title,
-        subtitle: '',
-        instructor: data.instructor,
-        instructorInitials: data.instructor.split(' ').map((w) => w[0]).slice(0, 2).join(''),
-        instructorTitle: '',
-        price: Number(data.price),
-        originalPrice: Number(data.originalPrice),
-        rating: 0,
-        reviewCount: 0,
-        students: 0,
-        duration: '',
-        lessons: 0,
-        level: data.level,
-        categoryId: data.categoryId,
-        category: data.category,
-        featured: false,
-        free: Number(data.price) === 0,
-        cardColor: '#7c3aed',
-        description: data.description,
-        modules: [],
-      }
-      setCourseList((prev) => [...prev, newCourse])
+      createMutation.mutate(data)
     }
-    setModal(null)
   }
+
+  const saving = createMutation.isPending || updateMutation.isPending
 
   return (
     <div style={{ padding: 'clamp(24px,3vw,40px)' }}>
@@ -133,6 +115,8 @@ export function AdminCourses() {
       {modal && (
         <CourseModal
           course={modal === 'new' ? null : modal}
+          categories={categories}
+          saving={saving}
           onSave={handleSave}
           onClose={() => setModal(null)}
         />
@@ -147,7 +131,14 @@ export function AdminCourses() {
             </p>
             <div className="flex gap-3">
               <Button variant="outline" fullWidth onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
-              <Button variant="danger" fullWidth onClick={() => handleDelete(deleteConfirm)}>Sí, eliminar</Button>
+              <Button
+                variant="danger"
+                fullWidth
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(deleteConfirm)}
+              >
+                {deleteMutation.isPending ? 'Eliminando…' : 'Sí, eliminar'}
+              </Button>
             </div>
           </div>
         </Modal>
@@ -158,18 +149,25 @@ export function AdminCourses() {
 
 function CourseModal({
   course,
+  categories,
+  saving,
   onSave,
   onClose,
 }: {
   course: Course | null
-  onSave: (data: CourseFormData & { id?: number }) => void
+  categories: Category[]
+  saving: boolean
+  onSave: (data: CourseFormData & { id?: string }) => void
   onClose: () => void
 }) {
+  const defaultCat = categories[0]
   const [form, setForm] = useState<CourseFormData>({
     title: course?.title ?? '',
+    subtitle: course?.subtitle ?? '',
     instructor: course?.instructor ?? '',
-    category: course?.category ?? 'Endodoncia',
-    categoryId: course?.categoryId ?? 1,
+    instructorTitle: course?.instructorTitle ?? '',
+    category: course?.category ?? defaultCat?.name ?? '',
+    categoryId: course?.categoryId ?? defaultCat?.id ?? '',
     level: course?.level ?? 'Básico',
     price: String(course?.price ?? ''),
     originalPrice: String(course?.originalPrice ?? ''),
@@ -183,7 +181,7 @@ function CourseModal({
 
   function handleCategoryChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const cat = categories.find((c) => c.name === e.target.value)
-    setForm((f) => ({ ...f, category: e.target.value, categoryId: cat?.id ?? 1 }))
+    setForm((f) => ({ ...f, category: e.target.value, categoryId: cat?.id ?? '' }))
   }
 
   return (
@@ -194,12 +192,17 @@ function CourseModal({
         </h2>
         <div className="flex flex-col gap-4">
           <Input label="Título del curso" value={form.title} onChange={set('title')} placeholder="Ej: Endodoncia Avanzada" />
+          <Input label="Subtítulo" value={form.subtitle} onChange={set('subtitle')} placeholder="Descripción corta del curso" />
           <Input label="Instructor" value={form.instructor} onChange={set('instructor')} placeholder="Ej: Dr. Martín Rodríguez" />
           <div className="grid grid-cols-2 gap-4">
             <FormSelect label="Categoría" value={form.category} onChange={handleCategoryChange}>
               {categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
             </FormSelect>
-            <FormSelect label="Nivel" value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value as CourseFormData['level'] }))}>
+            <FormSelect
+              label="Nivel"
+              value={form.level}
+              onChange={(e) => setForm((f) => ({ ...f, level: e.target.value as CourseFormData['level'] }))}
+            >
               {['Básico', 'Intermedio', 'Avanzado'].map((l) => <option key={l} value={l}>{l}</option>)}
             </FormSelect>
           </div>
@@ -222,9 +225,10 @@ function CourseModal({
             <Button
               variant="primary"
               fullWidth
+              disabled={saving}
               onClick={() => onSave({ ...form, id: course?.id })}
             >
-              {course ? 'Guardar cambios' : 'Crear curso'}
+              {saving ? 'Guardando…' : course ? 'Guardar cambios' : 'Crear curso'}
             </Button>
           </div>
         </div>

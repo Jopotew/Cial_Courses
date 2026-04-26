@@ -1,18 +1,24 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { courses, categories } from '@/data/mock'
+import { useQuery } from '@tanstack/react-query'
+import { coursesApi } from '@/api/courses'
+import { categoriesApi } from '@/api/categories'
+import type { Category, Course } from '@/types'
 import { CourseCard } from '@/components/shared/CourseCard'
 import { SectionHeader } from '@/components/shared/SectionHeader'
 import { Footer } from '@/components/layout/Footer'
 import { Button } from '@/components/ui'
 
 export function Landing() {
+  const { data: courses = [] } = useQuery({ queryKey: ['courses'], queryFn: coursesApi.list })
+  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
+
   return (
     <div className="bg-white">
       <HeroSection />
       <StatsBar />
-      <CategoriesSection />
-      <FeaturedSection />
+      <CategoriesSection categories={categories} />
+      <FeaturedSection courses={courses} />
       <CtaBanner />
       <Footer />
     </div>
@@ -36,7 +42,6 @@ function HeroSection() {
         padding: 'clamp(60px,10vw,100px) 24px',
       }}
     >
-      {/* Blobs */}
       <div
         className="absolute -top-20 -right-20 w-[360px] h-[360px] rounded-full pointer-events-none"
         style={{ background: 'rgba(124,58,237,.25)', filter: 'blur(60px)' }}
@@ -67,7 +72,6 @@ function HeroSection() {
           Cursos 100% online, a tu ritmo. Aprendé con los mejores especialistas del país y potenciá tu práctica clínica.
         </p>
 
-        {/* Search */}
         <form
           onSubmit={handleSearch}
           className="flex max-w-[560px] mx-auto mb-9 rounded-[14px] overflow-hidden"
@@ -124,7 +128,7 @@ function StatsBar() {
   )
 }
 
-function CategoriesSection() {
+function CategoriesSection({ categories }: { categories: Category[] }) {
   const navigate = useNavigate()
   return (
     <section className="bg-canvas px-6" style={{ padding: 'clamp(48px,6vw,80px) 24px' }}>
@@ -140,7 +144,7 @@ function CategoriesSection() {
   )
 }
 
-function CategoryCard({ cat, onNavigate }: { cat: typeof categories[0]; onNavigate: () => void }) {
+function CategoryCard({ cat, onNavigate }: { cat: Category; onNavigate: () => void }) {
   const [hov, setHov] = useState(false)
   return (
     <div
@@ -165,14 +169,15 @@ function CategoryCard({ cat, onNavigate }: { cat: typeof categories[0]; onNaviga
         </svg>
       </div>
       <p className="text-sm font-bold text-ink leading-[1.3]">{cat.name}</p>
-      <p className="text-xs text-slate-400 mt-1">{cat.count} cursos</p>
+      <p className="text-xs text-slate-400 mt-1">{cat.coursesCount} cursos</p>
     </div>
   )
 }
 
-function FeaturedSection() {
+function FeaturedSection({ courses }: { courses: Course[] }) {
   const navigate = useNavigate()
-  const featured = courses.filter((c) => c.featured)
+  const featured = courses.filter((c) => c.featured).slice(0, 3)
+  const display = featured.length > 0 ? featured : courses.slice(0, 3)
   return (
     <section className="bg-white px-6" style={{ padding: 'clamp(48px,6vw,80px) 24px' }}>
       <div className="max-w-[1100px] mx-auto">
@@ -183,7 +188,7 @@ function FeaturedSection() {
           </Button>
         </div>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
-          {featured.map((c) => <CourseCard key={c.id} course={c} />)}
+          {display.map((c) => <CourseCard key={c.id} course={c} />)}
         </div>
       </div>
     </section>

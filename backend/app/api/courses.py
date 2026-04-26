@@ -68,6 +68,26 @@ def list_courses(
     }
 
 
+@router.get("/featured", response_model=list[CourseDetailResponse])
+def get_featured_courses(
+    limit: int = Query(default=3, ge=1, le=10, description="Cantidad de cursos destacados"),
+):
+    """
+    Obtiene cursos destacados para mostrar en la landing.
+    
+    Si hay cursos marcados como featured=true, retorna esos.
+    Si no hay suficientes, completa con los más recientes.
+    
+    Query params:
+    - limit: Cantidad de cursos (1-10, default: 3)
+    
+    Endpoint público — no requiere autenticación.
+    """
+    featured = course_service.get_featured_courses(limit=limit)
+
+    return [CourseDetailResponse.model_validate(c) for c in featured]
+
+
 @router.get("/{course_id}", response_model=CourseDetailResponse)
 def get_course(course_id: UUID):
     """

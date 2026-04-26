@@ -166,24 +166,26 @@ def list_all_payments(
     
     Requiere: JWT válido + role=1 (admin).
     """
-    # Obtener todos los pagos
+    # Obtener todos los pagos con JOIN a cursos y usuarios
     query = _client().table("payments").select(
         "*, courses(id, title), users(id, full_name, email)"
     )
-    
+
     if status_filter:
         query = query.eq("status", status_filter)
-    
+
     result = query.order("created_at", desc=True).execute()
-    
+
     # Aplanar estructura
     payments = []
     for payment in result.data:
         if payment.get("courses"):
             payment["course_title"] = payment["courses"]["title"]
-            del payment["courses"]
+        del payment["courses"]
         if payment.get("users"):
-            del payment["users"]
+            payment["user_name"] = payment["users"].get("full_name")
+            payment["user_email"] = payment["users"].get("email")
+        del payment["users"]
         payments.append(payment)
     
     return [PaymentListResponse.model_validate(p) for p in payments]

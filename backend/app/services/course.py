@@ -1,7 +1,8 @@
 """
-app/services/course_service.py
--------------------------------
+app/services/course.py
+----------------------
 Lógica de negocio del módulo de cursos.
+ACTUALIZADO: Soporte para subtitle, level, instructor_title, original_price, featured
 """
 
 from datetime import datetime, timezone
@@ -19,11 +20,7 @@ def _client():
 
 
 def _remove_accents(text: str) -> str:
-    """
-    Remueve tildes y acentos de un texto.
-    
-    Convierte "Estimulación" en "Estimulacion".
-    """
+    """Remueve tildes y acentos de un texto."""
     return ''.join(
         c for c in unicodedata.normalize('NFD', text)
         if unicodedata.category(c) != 'Mn'
@@ -41,7 +38,6 @@ def get_course_by_id(course_id: UUID, include_unpublished: bool = False) -> Opti
     Args:
         course_id: UUID del curso.
         include_unpublished: Si es True, retorna el curso aunque no esté publicado.
-                             Si es False, solo retorna cursos publicados.
 
     Returns:
         Diccionario con los datos del curso, o None si no existe o no está publicado.
@@ -125,12 +121,48 @@ def get_all_courses(
                 filtered_courses.append(course)
         
         courses = filtered_courses
-        # Actualizar el total después del filtro
         total = len(courses)
     else:
         total = result.count or 0
 
     return courses, total
+
+
+def get_featured_courses(limit: int = 3) -> list[dict]:
+    """
+    Obtiene cursos destacados (featured=true).
+    
+    Si no hay cursos destacados, retorna los últimos N cursos publicados.
+    
+    Args:
+        limit: Cantidad de cursos a retornar
+        
+    Returns:
+        Lista de cursos destacados
+    """
+    # Intentar obtener cursos marcados como featured
+    result = _client().table("courses").select(
+        "*, categories(name)"
+    ).eq("is_published", True).eq("featured", True).order("created_at", desc=True).limit(limit).execute()
+    
+    courses = result.data
+    
+    # Si no hay suficientes cursos featured, completar con los más recientes
+    if len(courses) < limit:
+        remaining = limit - len(courses)
+        recent = _client().table("courses").select(
+            "*, categories(name)"
+        ).eq("is_published", True).eq("featured", False).order("created_at", desc=True).limit(remaining).execute()
+        
+        courses.extend(recent.data)
+    
+    # Aplanar categorías
+    for course in courses:
+        if course.get("categories"):
+            course["category_name"] = course["categories"]["name"]
+            del course["categories"]
+    
+    return courses
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -152,11 +184,16 @@ def create_course(data: CourseCreateRequest) -> dict:
     """
     result = _client().table("courses").insert({
         "title": data.title,
+        "subtitle": data.subtitle,
         "description": data.description,
         "category_id": str(data.category_id),
         "instructor_name": data.instructor_name,
+        "instructor_title": data.instructor_title,
         "price": str(data.price),
+        "original_price": str(data.original_price) if data.original_price else None,
+        "level": data.level,
         "thumbnail_url": data.thumbnail_url,
+        "featured": data.featured,
         "is_published": False,
     }).execute()
 
@@ -184,16 +221,26 @@ def update_course(course_id: UUID, data: CourseUpdateRequest) -> dict:
 
     if data.title is not None:
         updates["title"] = data.title
+    if data.subtitle is not None:
+        updates["subtitle"] = data.subtitle
     if data.description is not None:
         updates["description"] = data.description
     if data.category_id is not None:
         updates["category_id"] = str(data.category_id)
     if data.instructor_name is not None:
         updates["instructor_name"] = data.instructor_name
+    if data.instructor_title is not None:
+        updates["instructor_title"] = data.instructor_title
     if data.price is not None:
         updates["price"] = str(data.price)
+    if data.original_price is not None:
+        updates["original_price"] = str(data.original_price)
+    if data.level is not None:
+        updates["level"] = data.level
     if data.thumbnail_url is not None:
         updates["thumbnail_url"] = data.thumbnail_url
+    if data.featured is not None:
+        updates["featured"] = data.featured
 
     result = _client().table("courses").update(updates).eq("id", str(course_id)).execute()
     return result.data[0]

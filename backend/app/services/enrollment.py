@@ -1,7 +1,8 @@
 """
-app/services/enrollment_service.py
------------------------------------
+app/services/enrollment.py
+---------------------------
 Lógica de negocio del módulo de matrículas.
+ACTUALIZADO: get_user_enrollments ahora trae TODOS los campos del curso con JOIN completo
 """
 
 from datetime import datetime, timezone
@@ -74,17 +75,41 @@ def get_enrollment_by_id(enrollment_id: UUID) -> Optional[dict]:
 
 def get_user_enrollments(user_id: UUID, active_only: bool = True) -> list[dict]:
     """
-    Obtiene todas las matrículas de un usuario.
+    Obtiene todas las matrículas de un usuario con información COMPLETA del curso.
+    
+    ACTUALIZADO: Ahora trae TODOS los campos necesarios para el frontend:
+    - Curso: title, subtitle, description, instructor, price, level, thumbnail
+    - Categoría: id, name
     
     Args:
         user_id: UUID del usuario
         active_only: Si es True, solo retorna matrículas activas
         
     Returns:
-        Lista de matrículas con información del curso
+        Lista de matrículas con información completa del curso
     """
+    # ✅ SELECT completo con JOIN a courses y categories
     query = _client().table("enrollments").select(
-        "*, courses(id, title, description, thumbnail_url, instructor_name)"
+        """
+        *,
+        courses(
+            id,
+            title,
+            subtitle,
+            description,
+            instructor_name,
+            instructor_title,
+            price,
+            original_price,
+            level,
+            thumbnail_url,
+            category_id,
+            categories(
+                id,
+                name
+            )
+        )
+        """
     ).eq("user_id", str(user_id))
     
     if active_only:
@@ -92,15 +117,33 @@ def get_user_enrollments(user_id: UUID, active_only: bool = True) -> list[dict]:
     
     result = query.order("enrolled_at", desc=True).execute()
     
-    # Aplanar la estructura del curso
+    # Aplanar la estructura anidada para que coincida con el schema
     enrollments = []
     for enrollment in result.data:
         if enrollment.get("courses"):
-            enrollment["course_title"] = enrollment["courses"]["title"]
-            enrollment["course_description"] = enrollment["courses"]["description"]
-            enrollment["course_thumbnail_url"] = enrollment["courses"].get("thumbnail_url")
-            enrollment["course_instructor"] = enrollment["courses"]["instructor_name"]
+            course = enrollment["courses"]
+            
+            # Campos del curso
+            enrollment["title"] = course.get("title")
+            enrollment["subtitle"] = course.get("subtitle")
+            enrollment["description"] = course.get("description")
+            enrollment["instructor_name"] = course.get("instructor_name")
+            enrollment["instructor_title"] = course.get("instructor_title")
+            enrollment["price"] = course.get("price")
+            enrollment["original_price"] = course.get("original_price")
+            enrollment["level"] = course.get("level", "basico")
+            enrollment["thumbnail_url"] = course.get("thumbnail_url")
+            enrollment["category_id"] = course.get("category_id")
+            
+            # Campos de la categoría
+            if course.get("categories"):
+                enrollment["category_name"] = course["categories"]["name"]
+            else:
+                enrollment["category_name"] = "Sin categoría"
+            
+            # Eliminar objeto anidado
             del enrollment["courses"]
+        
         enrollments.append(enrollment)
     
     return enrollments

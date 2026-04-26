@@ -1,22 +1,53 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
-import { courses } from '@/data/mock'
+import { enrollmentsApi } from '@/api/enrollments'
+import { coursesApi } from '@/api/courses'
+import { progressApi } from '@/api/progress'
+import type { Course } from '@/types'
 import { ProgressCard } from '@/components/shared/ProgressCard'
 import { CourseCard } from '@/components/shared/CourseCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Button } from '@/components/ui'
 
 export function Dashboard() {
-  const { user, enrolledCourseIds, courseProgress } = useAuthStore()
+  const { user, isAuthenticated, setEnrolledIds } = useAuthStore()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'learning' | 'explore'>('learning')
 
-  const enrolled = courses.filter((c) => enrolledCourseIds.includes(c.id))
-  const notEnrolled = courses.filter((c) => !enrolledCourseIds.includes(c.id))
-  const completedCount = Object.values(courseProgress).filter((p) => p === 100).length
-  const navigate = useNavigate()
+  const { data: enrolledCourses = [] } = useQuery({
+    queryKey: ['my-courses'],
+    queryFn: enrollmentsApi.myCourses,
+    enabled: isAuthenticated,
+  })
 
-  const highestProgressCourse = enrolled.reduce<typeof enrolled[0] | null>((best, c) => {
+  const { data: allCourses = [] } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesApi.list,
+  })
+
+  const progressResults = useQueries({
+    queries: enrolledCourses.map((c) => ({
+      queryKey: ['progress', c.id],
+      queryFn: () => progressApi.getCourse(c.id),
+      enabled: isAuthenticated,
+    })),
+  })
+
+  const courseProgress: Record<string, number> = Object.fromEntries(
+    enrolledCourses.map((c, i) => [c.id, progressResults[i]?.data ?? 0]),
+  )
+
+  useEffect(() => {
+    setEnrolledIds(enrolledCourses.map((c) => c.id))
+  }, [enrolledCourses, setEnrolledIds])
+
+  const enrolledIds = new Set(enrolledCourses.map((c) => c.id))
+  const notEnrolled = allCourses.filter((c) => !enrolledIds.has(c.id))
+  const completedCount = Object.values(courseProgress).filter((p) => p === 100).length
+
+  const highestProgressCourse = enrolledCourses.reduce<Course | null>((best, c) => {
     const p = courseProgress[c.id] ?? 0
     if (!best) return c
     return p > (courseProgress[best.id] ?? 0) ? c : best
@@ -49,9 +80,9 @@ export function Dashboard() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: 'Cursos inscriptos', value: enrolled.length },
+              { label: 'Cursos inscriptos', value: enrolledCourses.length },
               { label: 'Cursos completados', value: completedCount },
-              { label: 'Horas aprendidas', value: '26h' },
+              { label: 'Horas aprendidas', value: '—' },
               { label: 'Certificados', value: 0 },
             ].map((s) => (
               <div
@@ -70,7 +101,7 @@ export function Dashboard() {
       {/* Tabs */}
       <div className="bg-white border-b border-[#f0ebfd]">
         <div className="max-w-[1100px] mx-auto px-6 flex gap-1">
-          {([['learning', 'Mi aprendizaje'], ['explore', 'Explorar más']] as const).map(([id, label]) => (
+          {(['learning', 'explore'] as const).map((id) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
@@ -81,7 +112,7 @@ export function Dashboard() {
                 fontWeight: activeTab === id ? 700 : 500,
               }}
             >
-              {label}
+              {id === 'learning' ? 'Mi aprendizaje' : 'Explorar más'}
             </button>
           ))}
         </div>
@@ -90,7 +121,7 @@ export function Dashboard() {
       <div className="max-w-[1100px] mx-auto px-6 py-8">
         {activeTab === 'learning' && (
           <div>
-            {enrolled.length === 0 ? (
+            {enrolledCourses.length === 0 ? (
               <EmptyState />
             ) : (
               <>
@@ -99,7 +130,7 @@ export function Dashboard() {
                     Continuar aprendiendo
                   </h2>
                   <div className="flex flex-col gap-4">
-                    {enrolled.map((course) => (
+                    {enrolledCourses.map((course) => (
                       <ProgressCard
                         key={course.id}
                         course={course}
@@ -109,7 +140,6 @@ export function Dashboard() {
                   </div>
                 </div>
 
-                {/* Achievement banner */}
                 {highestProgressCourse && (
                   <div
                     className="rounded-[20px] px-7 py-6 flex items-center gap-6 flex-wrap"

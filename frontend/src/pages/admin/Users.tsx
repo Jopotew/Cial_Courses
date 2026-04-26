@@ -1,23 +1,28 @@
 import { useState } from 'react'
-import type { UserRecord } from '@/types'
-import { allUsers } from '@/data/mock'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { adminApi } from '@/api/admin'
 import { Badge, Button } from '@/components/ui'
 
 export function AdminUsers() {
-  const [users, setUsers] = useState<UserRecord[]>([...allUsers])
+  const qc = useQueryClient()
   const [search, setSearch] = useState('')
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: adminApi.getUsers,
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      adminApi.toggleUserActive(id, active),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+  })
 
   const filtered = users.filter(
     (u) =>
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()),
   )
-
-  function toggleActive(id: number) {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, active: !u.active } : u)),
-    )
-  }
 
   return (
     <div style={{ padding: 'clamp(24px,3vw,40px)' }}>
@@ -28,7 +33,6 @@ export function AdminUsers() {
             {users.filter((u) => u.active).length} activos de {users.length} totales
           </p>
         </div>
-        {/* Search */}
         <div className="bg-white rounded-[10px] border-[1.5px] border-[#e2d9f7] flex items-center overflow-hidden w-60">
           <svg
             width="16" height="16" viewBox="0 0 16 16" fill="none"
@@ -86,7 +90,8 @@ export function AdminUsers() {
                     <Button
                       size="sm"
                       variant={u.active ? 'ghost' : 'secondary'}
-                      onClick={() => toggleActive(u.id)}
+                      disabled={toggleMutation.isPending}
+                      onClick={() => toggleMutation.mutate({ id: u.id, active: !u.active })}
                     >
                       {u.active ? 'Desactivar' : 'Activar'}
                     </Button>
