@@ -4,36 +4,58 @@ app/main.py
 Punto de entrada de la aplicación AulaCAL.
 """
 
-
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api import auth, users, categories, courses, videos, video_progress, enrollments, payments, webhooks, subscriptions, admin, emails
 
 from contextlib import asynccontextmanager
 from app.services import scheduler as scheduler_service
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+ALLOWED_ORIGINS = [
+    "https://cial-courses-87vd.vercel.app",
+    "http://localhost:5173",
+]
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: iniciar scheduler
     scheduler_service.start_scheduler()
     yield
-    # Shutdown: detener scheduler
     scheduler_service.stop_scheduler()
- 
- 
+
+
 app = FastAPI(
     title="AulaCAL API",
     description="API para plataforma de cursos online",
     version="1.0.0",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    origin = request.headers.get("origin", "NO-ORIGIN")
+    if request.method == "OPTIONS":
+        logger.info(
+            "PREFLIGHT | path=%s | origin=%s | access-control-request-method=%s | access-control-request-headers=%s | origin_allowed=%s",
+            request.url.path,
+            origin,
+            request.headers.get("access-control-request-method", "-"),
+            request.headers.get("access-control-request-headers", "-"),
+            origin in ALLOWED_ORIGINS,
+        )
+    response = await call_next(request)
+    if request.method == "OPTIONS":
+        logger.info("PREFLIGHT response status=%s", response.status_code)
+    return response
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://cial-courses-87vd.vercel.app",
-        "http://localhost:5173",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
