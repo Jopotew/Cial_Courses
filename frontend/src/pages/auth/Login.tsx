@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button, Input, CodeInput } from '@/components/ui'
 import { authApi } from '@/api/auth'
@@ -9,8 +9,10 @@ type Step = 'credentials' | 'verify'
 
 export function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuthStore()
   const [step, setStep] = useState<Step>('credentials')
+  const justVerified = (location.state as { verified?: boolean } | null)?.verified === true
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -75,6 +77,14 @@ export function Login() {
 
   return (
     <AuthLayout title={titles[step]} subtitle={subtitles[step]}>
+      {justVerified && (
+        <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl p-4 text-center mb-2">
+          <p className="text-[13px] text-[#166534] font-medium">
+            ¡Cuenta verificada! Ya podés iniciar sesión.
+          </p>
+        </div>
+      )}
+
       {step === 'credentials' && (
         <form onSubmit={handleCredentials} className="flex flex-col gap-4">
           <Input
