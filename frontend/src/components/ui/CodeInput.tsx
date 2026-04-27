@@ -11,16 +11,18 @@ export function CodeInput({ value, onChange, error }: CodeInputProps) {
   const digits = value.split('').concat(Array(6).fill('')).slice(0, 6)
 
   function handleKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    e.preventDefault()
     if (e.key === 'Backspace') {
+      e.preventDefault()
       const next = digits.map((d, j) => (j === i ? '' : d)).join('')
       onChange(next)
       if (i > 0) inputs.current[i - 1]?.focus()
     } else if (/^\d$/.test(e.key)) {
+      e.preventDefault()
       const next = digits.map((d, j) => (j === i ? e.key : d)).join('')
       onChange(next)
       if (i < 5) inputs.current[i + 1]?.focus()
     }
+    // other keys (Enter, Tab, etc.) propagate normally
   }
 
   return (

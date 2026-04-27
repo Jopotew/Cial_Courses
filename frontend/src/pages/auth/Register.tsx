@@ -70,7 +70,7 @@ export function Register() {
     setLoading(true)
     try {
       await authApi.verifyEmail(form.email, code)
-      navigate('/login', { state: { verified: true } })
+      navigate('/login', { state: { verified: true }, replace: true })
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number; data?: { detail?: string } } })?.response?.status
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail

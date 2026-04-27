@@ -41,7 +41,7 @@ export function Login() {
       if (!res.requires_2fa) {
         const user = await authApi.me()
         login(user)
-        navigate('/')
+        navigate(user.isAdmin ? '/admin' : '/dashboard', { replace: true })
       } else {
         setUserId(res.user_id)
         setStep('verify')
@@ -55,13 +55,13 @@ export function Login() {
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault()
-    if (code.length < 4) { setError('Código inválido'); return }
+    if (code.length !== 6) { setError('Ingresá los 6 dígitos del código'); return }
     setError('')
     setLoading(true)
     try {
       const user = await authApi.verify2FA(userId, code)
       login(user)
-      navigate('/')
+      navigate(user.isAdmin ? '/admin' : '/dashboard', { replace: true })
     } catch {
       setError('Código incorrecto o expirado')
     } finally {
