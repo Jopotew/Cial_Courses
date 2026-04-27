@@ -36,15 +36,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-origins = [
-    "https://cial-courses-87vd.vercel.app",
-    "http://localhost:3000",
-]
-
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://cial-courses-87vd.vercel.app", "http://localhost:3000"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,18 +81,18 @@ async def generic_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Error interno", "error": str(exc)})
 
 # ✅ Routers
-app.include_router(auth.router, prefix="")
-app.include_router(users.router, prefix="")
-app.include_router(emails.router, prefix="")
-app.include_router(categories.router, prefix="")
-app.include_router(courses.router, prefix="")
-app.include_router(videos.router, prefix="")
-app.include_router(video_progress.router, prefix="")
-app.include_router(enrollments.router, prefix="")
-app.include_router(payments.router, prefix="")
-app.include_router(subscriptions.router, prefix="")
-app.include_router(webhooks.router, prefix="")
-app.include_router(admin.router, prefix="")
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
+app.include_router(emails.router, prefix="/api/v1")
+app.include_router(categories.router, prefix="/api/v1")
+app.include_router(courses.router, prefix="/api/v1")
+app.include_router(videos.router, prefix="/api/v1")
+app.include_router(video_progress.router, prefix="/api/v1")
+app.include_router(enrollments.router, prefix="/api/v1")
+app.include_router(payments.router, prefix="/api/v1")
+app.include_router(subscriptions.router, prefix="/api/v1")
+app.include_router(webhooks.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
 
 
 @app.get("/")
