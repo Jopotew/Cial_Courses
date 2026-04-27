@@ -36,9 +36,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+origins = [
+    "https://cial-courses-87vd.vercel.app",
+    "http://localhost:3000",
+]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://cial-courses-87vd.vercel.app", "http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
