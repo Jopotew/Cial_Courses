@@ -72,9 +72,9 @@ export const authApi = {
     return res.data
   },
 
-  verifyEmail: async (userId: string, code: string): Promise<void> => {
+  verifyEmail: async (email: string, code: string): Promise<void> => {
     if (MOCK) return new Promise((r) => setTimeout(r, 800))
-    await client.post('/auth/verify-email', { user_id: userId, code })
+    await client.post('/auth/verify-email', { email, code })
   },
 
   resendVerification: async (email: string): Promise<void> => {

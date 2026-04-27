@@ -6,6 +6,7 @@ Ahora con envío real de emails via Mailtrap.
 """
 
 from datetime import datetime, timedelta, timezone
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
@@ -69,15 +70,12 @@ def register(data: UserRegisterRequest):
         raise HTTPException(status_code=409, detail="El username ya está en uso.")
 
     new_user = user_service.create_user(data)
-    user_id = UUID(new_user["id"])
 
-    # Generar código, guardarlo en DB y enviarlo por email
-    code = email_service.create_code(user_id, "register")
+    code = email_service.create_code(new_user["email"], "register")
     email_service.send_verification_email(new_user["email"], code)
 
     return UserRegisterResponse(
         message="Registro exitoso. Revisá tu email para verificar tu cuenta.",
-        user_id=user_id,
     )
 
 
@@ -91,19 +89,19 @@ def verify_email(data: EmailVerifyRequest):
         - Que no esté usado.
         - Que no haya expirado.
     """
-    user = user_service.get_user_by_id(data.user_id)
+    email: str = cast(str, data.email)
+    user = user_service.get_user_by_email(email)  # type: ignore[arg-type]
     if user is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
 
     if user.get("is_verified"):
         raise HTTPException(status_code=400, detail="El email ya fue verificado.")
 
-    # Validar código contra la DB
-    is_valid = email_service.verify_code(data.user_id, data.code, "register")
+    is_valid = email_service.verify_code(email, data.code, "register")
     if not is_valid:
         raise HTTPException(status_code=400, detail="Código inválido o expirado.")
 
-    user_service.verify_user_email(data.user_id)
+    user_service.verify_user_email(UUID(user["id"]))  # type: ignore[arg-type]
 
     return MessageResponse(message="Email verificado. Ya podés iniciar sesión.")
 
@@ -137,8 +135,7 @@ def login(data: UserLoginRequest, response: Response):
     needs_2fa = _needs_2fa(user)
 
     if needs_2fa:
-        # Generar código 2FA, guardarlo en DB y enviarlo por email
-        code = email_service.create_code(user_id, "login_2fa")
+        code = email_service.create_code(user["email"], "login_2fa")  # type: ignore[arg-type]
         email_service.send_2fa_email(user["email"], code)
 
     # Generar tokens
@@ -179,7 +176,7 @@ def verify_2fa(data: TwoFactorVerifyRequest):
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
 
     # Validar código contra la DB
-    is_valid = email_service.verify_code(data.user_id, data.code, "login_2fa")
+    is_valid = email_service.verify_code(user["email"], data.code, "login_2fa")  # type: ignore[arg-type]
     if not is_valid:
         raise HTTPException(status_code=400, detail="Código inválido o expirado.")
 
@@ -236,10 +233,9 @@ def forgot_password(data: ForgotPasswordRequest):
     Envía código de reset por email.
     Responde igual si el email existe o no (seguridad).
     """
-    user = user_service.get_user_by_email(data.email)
+    user = user_service.get_user_by_email(str(data.email))  # type: ignore[arg-type]
     if user is not None:
-        user_id = UUID(user["id"])
-        code = email_service.create_code(user_id, "reset_password")
+        code = email_service.create_code(user["email"], "reset_password")  # type: ignore[arg-type]
         email_service.send_reset_password_email(user["email"], code)
 
     return MessageResponse(
@@ -254,8 +250,7 @@ def reset_password(data: ResetPasswordRequest):
     if user is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
 
-    # Validar código contra la DB
-    is_valid = email_service.verify_code(data.user_id, data.code, "reset_password")
+    is_valid = email_service.verify_code(user["email"], data.code, "reset_password")  # type: ignore[arg-type]
     if not is_valid:
         raise HTTPException(status_code=400, detail="Código inválido o expirado.")
 
@@ -281,10 +276,9 @@ def change_password(
 @router.post("/resend-verification", response_model=MessageResponse)
 def resend_verification(data: ForgotPasswordRequest):
     """Reenvía el código de verificación de email."""
-    user = user_service.get_user_by_email(data.email)
+    user = user_service.get_user_by_email(str(data.email))  # type: ignore[arg-type]
     if user is not None and not user.get("is_verified"):
-        user_id = UUID(user["id"])
-        code = email_service.create_code(user_id, "register")
+        code = email_service.create_code(user["email"], "register")  # type: ignore[arg-type]
         email_service.send_verification_email(user["email"], code)
 
     return MessageResponse(

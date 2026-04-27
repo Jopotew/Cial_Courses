@@ -26,13 +26,13 @@ class EmailVerifyRequest(BaseModel):
     """
     Body esperado en POST /auth/verify-email.
 
-    El usuario ingresa el código de 6 dígitos recibido por email
-    después de registrarse.
+    El usuario ingresa el email con el que se registró y el código de 6 dígitos.
     """
 
-    user_id: UUID = Field(
+    email: EmailStr = Field(
         ...,
-        description="UUID del usuario retornado en el registro.",
+        description="Email del usuario registrado.",
+        examples=["juan.perez@ejemplo.com"],
     )
     code: str = Field(
         ...,

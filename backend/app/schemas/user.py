@@ -252,12 +252,10 @@ class UserRegisterResponse(BaseModel):
     Respuesta de POST /auth/register.
 
     Campos devueltos:
-        message : str  → mensaje informativo
-        user_id : UUID → UUID del usuario creado (para verify-email)
+        message : str → mensaje informativo
     """
 
     message: str
-    user_id: UUID
 
 
 class UserDeleteResponse(BaseModel):

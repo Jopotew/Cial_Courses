@@ -23,7 +23,6 @@ export function Register() {
   const [errors, setErrors] = useState<Partial<RegisterForm>>({})
   const [code, setCode] = useState('')
   const [codeError, setCodeError] = useState('')
-  const [userId, setUserId] = useState('')
   const [loading, setLoading] = useState(false)
 
   function set(k: keyof RegisterForm) {
@@ -52,8 +51,7 @@ export function Register() {
     setErrors({})
     setLoading(true)
     try {
-      const res = await authApi.register(form.name, form.username, form.email, form.password)
-      setUserId(res.user_id)
+      await authApi.register(form.name, form.username, form.email, form.password)
       setStep('verify')
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -71,7 +69,7 @@ export function Register() {
     setCodeError('')
     setLoading(true)
     try {
-      await authApi.verifyEmail(userId, code)
+      await authApi.verifyEmail(form.email, code)
       const user = await authApi.me()
       login(user)
       navigate('/')

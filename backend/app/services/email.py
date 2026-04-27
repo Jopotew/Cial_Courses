@@ -29,26 +29,23 @@ def _client():
 # PARTE 1: CÓDIGOS DE VERIFICACIÓN (2FA, Reset Password, etc.)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def create_code(user_id: UUID, code_type: str) -> str:
+def create_code(user_email: str, code_type: str) -> str:
     """
     Genera un código de 6 dígitos, lo guarda en la DB y lo retorna.
-    
+
     Tipos: 'register', 'login_2fa', 'reset_password'
     """
-    # Invalidar códigos anteriores del mismo tipo
     _client().table("email_codes").update({
         "used": True,
-    }).eq("user_id", str(user_id)).eq("type", code_type).eq("used", False).execute()
+    }).eq("user_email", user_email.lower()).eq("type", code_type).eq("used", False).execute()
 
-    # Generar nuevo código
     code = generate_numeric_code()
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=settings.EMAIL_CODE_EXPIRE_MINUTES
     )
 
-    # Guardar en DB
     _client().table("email_codes").insert({
-        "user_id": str(user_id),
+        "user_email": user_email.lower(),
         "code": code,
         "type": code_type,
         "expires_at": expires_at.isoformat(),
@@ -58,17 +55,17 @@ def create_code(user_id: UUID, code_type: str) -> str:
     return code
 
 
-def verify_code(user_id: UUID, code: str, code_type: str) -> bool:
+def verify_code(user_email: str, code: str, code_type: str) -> bool:
     """
     Valida un código ingresado por el usuario.
-    
+
     Verifica que exista, no esté usado y no esté expirado.
     """
     result = (
         _client()
         .table("email_codes")
         .select("*")
-        .eq("user_id", str(user_id))
+        .eq("user_email", user_email.lower())
         .eq("code", code)
         .eq("type", code_type)
         .eq("used", False)
@@ -80,12 +77,10 @@ def verify_code(user_id: UUID, code: str, code_type: str) -> bool:
 
     record = result.data[0]
 
-    # Verificar expiración
     expires_at = datetime.fromisoformat(record["expires_at"].replace("Z", "+00:00"))
     if datetime.now(timezone.utc) > expires_at:
         return False
 
-    # Marcar como usado
     _client().table("email_codes").update({
         "used": True,
     }).eq("id", record["id"]).execute()
