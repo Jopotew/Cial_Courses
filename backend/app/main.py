@@ -39,6 +39,30 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.options("/{full_path:path}")
+async def preflight_handler(request: Request, full_path: str):
+    """Handler explícito para peticiones OPTIONS (CORS preflight)"""
+    origin = request.headers.get("origin", "")
+    
+    if origin in ALLOWED_ORIGINS:
+        return JSONResponse(
+            content={},
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "content-type, authorization",
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Max-Age": "3600",
+            },
+        )
+    else:
+        return JSONResponse(
+            content={"detail": "CORS not allowed"},
+            status_code=403,
+        )
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     origin = request.headers.get("origin", "NO-ORIGIN")
@@ -56,10 +80,6 @@ async def log_requests(request: Request, call_next):
         logger.info("PREFLIGHT response status=%s", response.status_code)
     return response
 
-# En backend/app/main.py
-
-
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -69,6 +89,8 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=3600,
 )
+
+
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 
