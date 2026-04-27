@@ -65,7 +65,7 @@ export function Register() {
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault()
-    if (code.length < 4) { setCodeError('Código inválido'); return }
+    if (code.length !== 6) { setCodeError('Ingresá los 6 dígitos del código'); return }
     setCodeError('')
     setLoading(true)
     try {
@@ -73,8 +73,13 @@ export function Register() {
       const user = await authApi.me()
       login(user)
       navigate('/')
-    } catch {
-      setCodeError('Código incorrecto o expirado')
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number; data?: { detail?: string } } })?.response?.status
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if (status === 404) setCodeError('Email no encontrado')
+      else if (status === 400) setCodeError(detail ?? 'Código incorrecto o expirado')
+      else if (status === 422) setCodeError('Código inválido — revisá que sean 6 dígitos')
+      else setCodeError('Error al verificar. Intentá de nuevo.')
     } finally {
       setLoading(false)
     }

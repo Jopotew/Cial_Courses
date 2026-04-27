@@ -9,6 +9,7 @@ Responsabilidades:
     3. Enviar emails de notificaciones (bienvenida, compra, etc.)
 """
 
+import logging
 import smtplib
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
@@ -18,6 +19,8 @@ from uuid import UUID
 from app.core.config import settings, get_settings
 from app.core.security import generate_numeric_code
 from app.db.supabase import get_supabase_admin_client
+
+logger = logging.getLogger("aulacal")
 
 
 def _client():
@@ -61,6 +64,8 @@ def verify_code(user_email: str, code: str, code_type: str) -> bool:
 
     Verifica que exista, no esté usado y no esté expirado.
     """
+    logger.info("verify_code | email=%s | code=%s | type=%s", user_email.lower(), code, code_type)
+
     result = (
         _client()
         .table("email_codes")
@@ -72,6 +77,8 @@ def verify_code(user_email: str, code: str, code_type: str) -> bool:
         .execute()
     )
 
+    logger.info("verify_code | rows_found=%d", len(result.data) if result.data else 0)
+
     if not result.data:
         return False
 
@@ -79,6 +86,7 @@ def verify_code(user_email: str, code: str, code_type: str) -> bool:
 
     expires_at = datetime.fromisoformat(record["expires_at"].replace("Z", "+00:00"))
     if datetime.now(timezone.utc) > expires_at:
+        logger.info("verify_code | EXPIRED | expires_at=%s", expires_at)
         return False
 
     _client().table("email_codes").update({
