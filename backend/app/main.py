@@ -23,8 +23,6 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
 
-ALLOWED_ORIGIN_REGEX = r"https://cial-courses-87vd.*\.vercel\.app"
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler_service.start_scheduler()
@@ -39,47 +37,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
-@app.options("/{full_path:path}")
-async def preflight_handler(request: Request, full_path: str):
-    """Handler explícito para peticiones OPTIONS (CORS preflight)"""
-    origin = request.headers.get("origin", "")
-    
-    if origin in ALLOWED_ORIGINS:
-        return JSONResponse(
-            content={},
-            status_code=200,
-            headers={
-                "Access-Control-Allow-Origin": origin,
-                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "content-type, authorization",
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Max-Age": "3600",
-            },
-        )
-    else:
-        return JSONResponse(
-            content={"detail": "CORS not allowed"},
-            status_code=403,
-        )
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    origin = request.headers.get("origin", "NO-ORIGIN")
-    if request.method == "OPTIONS":
-        logger.info(
-            "PREFLIGHT | path=%s | origin=%s | access-control-request-method=%s | access-control-request-headers=%s | origin_allowed=%s",
-            request.url.path,
-            origin,
-            request.headers.get("access-control-request-method", "-"),
-            request.headers.get("access-control-request-headers", "-"),
-            origin in ALLOWED_ORIGINS,
-        )
-    response = await call_next(request)
-    if request.method == "OPTIONS":
-        logger.info("PREFLIGHT response status=%s", response.status_code)
-    return response
-
+# ✅ PRIMERO: Middleware de CORS (esto procesa OPTIONS automáticamente)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -90,22 +48,34 @@ app.add_middleware(
     max_age=3600,
 )
 
+# ✅ DESPUÉS: Middleware de logging (no interfiere con CORS)
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    origin = request.headers.get("origin", "NO-ORIGIN")
+    if request.method == "OPTIONS":
+        logger.info(
+            "PREFLIGHT | path=%s | origin=%s | origin_allowed=%s",
+            request.url.path,
+            origin,
+            origin in ALLOWED_ORIGINS,
+        )
+    response = await call_next(request)
+    if request.method == "OPTIONS":
+        logger.info("PREFLIGHT response status=%s", response.status_code)
+    return response
 
+# ✅ Routers
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
-
 app.include_router(emails.router, prefix="/api/v1")
-
 app.include_router(categories.router, prefix="/api/v1")
 app.include_router(courses.router, prefix="/api/v1")
 app.include_router(videos.router, prefix="/api/v1")
 app.include_router(video_progress.router, prefix="/api/v1")
-
 app.include_router(enrollments.router, prefix="/api/v1")
 app.include_router(payments.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
-
 app.include_router(admin.router, prefix="/api/v1")
 
 
@@ -116,7 +86,6 @@ def root():
         "version": "1.0.0",
         "status": "running",
         "cors_origins": ALLOWED_ORIGINS,
-        "cors_regex": ALLOWED_ORIGIN_REGEX,
     }
 
 
