@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 ALLOWED_ORIGINS = [
     "https://cial-courses-87vd.vercel.app",
     "http://localhost:5173",
+    "http://localhost:3000",
 ]
 
 ALLOWED_ORIGIN_REGEX = r"https://cial-courses-87vd.*\.vercel\.app"
@@ -55,15 +56,19 @@ async def log_requests(request: Request, call_next):
         logger.info("PREFLIGHT response status=%s", response.status_code)
     return response
 
+# En backend/app/main.py
+
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
-
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 
