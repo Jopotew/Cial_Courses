@@ -31,7 +31,7 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
       : 0
 
   async function handleBuy() {
-    if (!isAuthenticated) { navigate('/login'); return }
+    if (!isAuthenticated) { navigate('/login', { state: { from: `/courses/${course.id}` } }); return }
     setPurchasing(true)
     try {
       if (course.free) {
@@ -84,7 +84,7 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
               </svg>
             </div>
             <p className="text-base font-bold text-accent mb-4">¡Ya estás inscripto!</p>
-            <Button variant="primary" fullWidth size="lg" onClick={() => navigate('/dashboard')}>
+            <Button variant="primary" fullWidth size="lg" onClick={() => navigate(`/courses/${course.id}/learn`)}>
               Ir a mi aprendizaje
             </Button>
           </div>

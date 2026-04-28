@@ -82,7 +82,7 @@ export function ProgressCard({ course, progress }: ProgressCardProps) {
         <Button
           variant="primary"
           size="sm"
-          onClick={() => navigate(`/courses/${course.id}`)}
+          onClick={() => navigate(`/courses/${course.id}/learn`)}
         >
           {progress > 0 ? 'Continuar' : 'Comenzar'}
         </Button>

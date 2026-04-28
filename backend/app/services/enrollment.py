@@ -144,12 +144,14 @@ def get_user_enrollments(user_id: UUID, active_only: bool = True) -> list[dict]:
         enrollment["thumbnail_url"] = course.get("thumbnail_url")
         enrollment["category_id"] = course.get("category_id")
 
-        # Categoría: puede venir como dict (JOIN) o como campo plano (fallback)
+        # Categoría: puede venir como dict (JOIN), lista, o ya aplanada (fallback get_course_by_id)
         cats = course.get("categories")
         if isinstance(cats, dict):
             enrollment["category_name"] = cats.get("name", "Sin categoría")
         elif isinstance(cats, list) and cats:
             enrollment["category_name"] = cats[0].get("name", "Sin categoría")
+        elif course.get("category_name"):
+            enrollment["category_name"] = course["category_name"]
         else:
             enrollment["category_name"] = "Sin categoría"
 

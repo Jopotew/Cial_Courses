@@ -157,7 +157,7 @@ export function Dashboard() {
                     </div>
                     <Button
                       variant="primary"
-                      onClick={() => navigate(`/courses/${highestProgressCourse.id}`)}
+                      onClick={() => navigate(`/courses/${highestProgressCourse.id}/learn`)}
                     >
                       Continuar curso
                     </Button>

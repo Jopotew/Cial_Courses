@@ -17,6 +17,7 @@ import { AdminOverview } from '@/pages/admin/Overview'
 import { AdminCourses } from '@/pages/admin/Courses'
 import { AdminUsers } from '@/pages/admin/Users'
 import { PaymentResult } from '@/pages/PaymentResult'
+import { CourseLearn } from '@/pages/CourseLearn'
 
 function MainLayout() {
   return (
@@ -103,6 +104,11 @@ export function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
+      </Route>
+
+      {/* Course learn — no site navbar, own layout */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/courses/:id/learn" element={<CourseLearn />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

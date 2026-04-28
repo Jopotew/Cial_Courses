@@ -12,7 +12,9 @@ export function Login() {
   const location = useLocation()
   const { login } = useAuthStore()
   const [step, setStep] = useState<Step>('credentials')
-  const justVerified = (location.state as { verified?: boolean } | null)?.verified === true
+  const locationState = location.state as { verified?: boolean; from?: string } | null
+  const justVerified = locationState?.verified === true
+  const redirectTo = locationState?.from
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -41,7 +43,7 @@ export function Login() {
       if (!res.requires_2fa) {
         const user = await authApi.me()
         login(user)
-        navigate(user.isAdmin ? '/admin' : '/dashboard', { replace: true })
+        navigate(redirectTo || (user.isAdmin ? '/admin' : '/dashboard'), { replace: true })
       } else {
         setUserId(res.user_id)
         setStep('verify')
@@ -61,7 +63,7 @@ export function Login() {
     try {
       const user = await authApi.verify2FA(userId, code)
       login(user)
-      navigate(user.isAdmin ? '/admin' : '/dashboard', { replace: true })
+      navigate(redirectTo || (user.isAdmin ? '/admin' : '/dashboard'), { replace: true })
     } catch {
       setError('Código incorrecto o expirado')
     } finally {
