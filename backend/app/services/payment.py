@@ -139,8 +139,24 @@ def create_payment_preference(
             "Por favor completá o cancelá los pagos pendientes antes de crear uno nuevo."
         )
     
-    frontend_url = settings.FRONTEND_URL.rstrip("/")
-    backend_url = settings.BACKEND_URL.rstrip("/")
+    import logging as _logging
+    _log = _logging.getLogger("aulacal")
+
+    # Strip whitespace and trailing slash — Render sometimes adds invisible chars
+    frontend_url = settings.FRONTEND_URL.strip().rstrip("/")
+    backend_url = settings.BACKEND_URL.strip().rstrip("/")
+
+    success_url = f"{frontend_url}/payment/success"
+    failure_url = f"{frontend_url}/payment/failure"
+    pending_url = f"{frontend_url}/payment/pending"
+    webhook_url = f"{backend_url}/api/v1/webhooks/mercadopago"
+
+    _log.info(
+        "MP preference build | token_prefix=%s | success=%s | webhook=%s",
+        settings.MERCADOPAGO_ACCESS_TOKEN[:12] + "...",
+        success_url,
+        webhook_url,
+    )
 
     # Crear preferencia en MercadoPago
     preference_data = {
@@ -153,23 +169,22 @@ def create_payment_preference(
             }
         ],
         "back_urls": {
-            "success": f"{frontend_url}/payment/success",
-            "failure": f"{frontend_url}/payment/failure",
-            "pending": f"{frontend_url}/payment/pending",
+            "success": success_url,
+            "failure": failure_url,
+            "pending": pending_url,
         },
         "auto_return": "approved",
-        "notification_url": f"{backend_url}/api/v1/webhooks/mercadopago",
+        "notification_url": webhook_url,
         "external_reference": str(user_id),
     }
-    
+
     # Crear preferencia
     preference = sdk.preference().create(preference_data)
     mp_status = preference.get("status")
     mp_response = preference.get("response", {})
 
     if mp_status not in (200, 201) or "id" not in mp_response:
-        import logging
-        logging.getLogger("aulacal").error(
+        _log.error(
             "MercadoPago preference creation failed | status=%s | response=%s",
             mp_status,
             mp_response,

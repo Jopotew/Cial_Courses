@@ -194,6 +194,47 @@ def list_all_payments(
     return [PaymentListResponse.model_validate(p) for p in payments]
 
 
+@router.get("/admin/mp-diagnostics")
+def mp_diagnostics(current_user: dict = Depends(require_admin)):
+    """
+    Diagnóstico de MercadoPago: verifica el token y los back_urls.
+    Solo admin. No crea ningún pago real.
+    """
+    import mercadopago
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    token = settings.MERCADOPAGO_ACCESS_TOKEN
+    frontend_url = settings.FRONTEND_URL.strip().rstrip("/")
+    backend_url = settings.BACKEND_URL.strip().rstrip("/")
+
+    sdk = mercadopago.SDK(token)
+
+    # Preferencia mínima con URLs hardcodeadas para aislar el problema
+    test_preference = {
+        "items": [{"title": "Test", "quantity": 1, "unit_price": 1.0, "currency_id": "ARS"}],
+        "back_urls": {
+            "success": f"{frontend_url}/payment/success",
+            "failure": f"{frontend_url}/payment/failure",
+            "pending": f"{frontend_url}/payment/pending",
+        },
+        "external_reference": "diagnostics-test",
+    }
+
+    response = sdk.preference().create(test_preference)
+
+    return {
+        "token_prefix": token[:12] + "...",
+        "token_type": "production" if token.startswith("APP_USR-") else "test",
+        "frontend_url": frontend_url,
+        "backend_url": backend_url,
+        "back_urls_sent": test_preference["back_urls"],
+        "mp_status": response.get("status"),
+        "mp_response_keys": list(response.get("response", {}).keys()),
+        "mp_error": response.get("response", {}).get("message") if response.get("status") not in (200, 201) else None,
+    }
+
+
 def _client():
     from app.db.supabase import get_supabase_admin_client
     return get_supabase_admin_client()
