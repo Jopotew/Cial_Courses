@@ -48,8 +48,8 @@ class Settings(BaseSettings):
 
     MERCADOPAGO_ACCESS_TOKEN: str
     MERCADOPAGO_PUBLIC_KEY: str
-    FRONTEND_URL: str = "http://localhost:3000"
-    BACKEND_URL: str = "https://cyclist-unvaried-oval.ngrok-free.dev"
+    FRONTEND_URL: str = Field(...)
+    BACKEND_URL: str = Field(...)
 @lru_cache
 def get_settings() -> Settings:
     return Settings()  # type: ignore
