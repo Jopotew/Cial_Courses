@@ -156,6 +156,23 @@ def get_payment(
 # Endpoints de admin
 # ──────────────────────────────────────────────────────────────────────────────
 
+@router.post("/confirm-success")
+def confirm_payment_success(
+    mp_payment_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    El frontend llama a este endpoint al volver de MercadoPago con status=approved.
+    Procesa el pago directamente sin esperar el webhook.
+    Es idempotente: si el webhook ya lo procesó, no duplica la matrícula.
+    """
+    try:
+        result = payment_service.process_payment_webhook(mp_payment_id)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+
 @router.patch("/cancel-by-preference/{preference_id}", status_code=200)
 def cancel_payment_by_preference(
     preference_id: str,

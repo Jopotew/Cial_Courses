@@ -13,4 +13,9 @@ export const paymentsApi = {
     if (MOCK) return
     await client.patch(`/payments/cancel-by-preference/${preferenceId}`)
   },
+
+  confirmSuccess: async (mpPaymentId: string): Promise<void> => {
+    if (MOCK) return
+    await client.post(`/payments/confirm-success?mp_payment_id=${mpPaymentId}`)
+  },
 }

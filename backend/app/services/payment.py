@@ -226,32 +226,35 @@ def create_payment_preference(
 
 def process_payment_webhook(mp_payment_id: str) -> dict:
     """
-    Procesa un webhook de MercadoPago cuando se confirma un pago.
-    
-    Args:
-        mp_payment_id: ID del pago en MercadoPago
-        
-    Returns:
-        Diccionario con el resultado del procesamiento
+    Procesa un webhook (o redirect de éxito) de MercadoPago.
+    Es idempotente: puede llamarse múltiples veces sin efectos duplicados.
     """
+    import logging as _log
+    logger = _log.getLogger("aulacal")
+
     sdk = _mp_sdk()
-    
-    # Obtener información del pago desde MercadoPago
+
     payment_info = sdk.payment().get(mp_payment_id)
     payment_data = payment_info["response"]
-    
-    print(f"Datos del pago desde MercadoPago: {payment_data}")
-    
-    status = payment_data["status"]
+
+    logger.info("MP payment data | id=%s | status=%s", mp_payment_id, payment_data.get("status"))
+
+    mp_status = payment_data.get("status")
     payment_method = payment_data.get("payment_method_id")
-    user_id = payment_data.get("external_reference")  # Esto es el user_id
+    preference_id = payment_data.get("preference_id")
+    user_id = payment_data.get("external_reference")
     transaction_amount = payment_data.get("transaction_amount")
-    
-    print(f"Status: {status}, User ID: {user_id}, Amount: {transaction_amount}")
-    
-    # Buscar el pago en nuestra DB por user_id + amount + status pending
-    # (el pago más reciente que coincida)
-    if user_id and transaction_amount:
+
+    # ── Buscar el pago en nuestra DB ──────────────────────────────────────────
+    # 1) por preference_id (más preciso)
+    our_payment = get_payment_by_preference_id(preference_id) if preference_id else None
+
+    # 2) por payment_id (si ya se procesó antes)
+    if not our_payment:
+        our_payment = get_payment_by_mp_payment_id(str(mp_payment_id))
+
+    # 3) por user_id + amount + pending (fallback)
+    if not our_payment and user_id and transaction_amount:
         result = _client().table("payments").select("*").eq(
             "user_id", user_id
         ).eq(
@@ -259,65 +262,47 @@ def process_payment_webhook(mp_payment_id: str) -> dict:
         ).eq(
             "status", "pending"
         ).order("created_at", desc=True).limit(1).execute()
-        
         our_payment = result.data[0] if result.data else None
-    else:
-        our_payment = None
-    
+
     if not our_payment:
-        # Intentar buscar por payment_id si ya fue procesado antes
-        our_payment = get_payment_by_mp_payment_id(str(mp_payment_id))
-    
-    if not our_payment:
-        print(f"ERROR: No se encontró el pago en la DB para user_id={user_id}, amount={transaction_amount}")
-        return {
-            "status": "error",
-            "message": "Pago no encontrado en la DB",
-        }
-    
-    print(f"Pago encontrado en DB: {our_payment['id']}")
-    
-    # Actualizar el pago en nuestra DB
-    updates = {
+        logger.error("Payment not found in DB | mp_id=%s | preference_id=%s", mp_payment_id, preference_id)
+        return {"status": "error", "message": "Pago no encontrado en la DB"}
+
+    logger.info("Payment found in DB | id=%s | current_status=%s", our_payment["id"], our_payment["status"])
+
+    # Actualizar datos del pago en nuestra DB
+    _client().table("payments").update({
         "payment_id": str(mp_payment_id),
-        "status": status,
+        "status": mp_status,
         "payment_method": payment_method,
         "mercadopago_data": payment_data,
-    }
-    
-    _client().table("payments").update(updates).eq("id", our_payment["id"]).execute()
-    print(f"Pago actualizado a status: {status}")
-    
-    # Si el pago fue aprobado, crear la matrícula
-    if status == "approved":
-        from app.services import enrollment as enrollment_service
-        from app.schemas.enrollment import EnrollmentCreateRequest
-        
-        print(f"Pago aprobado, creando matrícula para user_id={our_payment['user_id']}, course_id={our_payment['course_id']}")
-        
-        # Crear matrícula
-        enrollment_data = EnrollmentCreateRequest(
-            user_id=UUID(our_payment["user_id"]),
-            course_id=UUID(our_payment["course_id"]),
+    }).eq("id", our_payment["id"]).execute()
+
+    if mp_status != "approved":
+        return {"status": mp_status, "message": f"Pago en estado: {mp_status}", "payment_id": our_payment["id"]}
+
+    # ── Pago aprobado: crear matrícula (idempotente) ──────────────────────────
+    from app.services import enrollment as enrollment_service
+    from app.schemas.enrollment import EnrollmentCreateRequest
+
+    uid = UUID(our_payment["user_id"])
+    cid = UUID(our_payment["course_id"])
+
+    if enrollment_service.is_user_enrolled(uid, cid):
+        logger.info("User already enrolled | user=%s course=%s", uid, cid)
+        return {"status": "already_enrolled", "message": "El usuario ya estaba matriculado.", "payment_id": our_payment["id"]}
+
+    enrollment_service.create_enrollment(
+        EnrollmentCreateRequest(
+            user_id=uid,
+            course_id=cid,
             enrollment_type="purchase",
-            expires_at=None,  # Sin vencimiento para compras individuales
+            expires_at=None,
         )
-        
-        enrollment_service.create_enrollment(enrollment_data)
-        print("Matrícula creada exitosamente")
-        
-        return {
-            "status": "success",
-            "message": "Pago aprobado y matrícula creada",
-            "payment_id": our_payment["id"],
-        }
-    
-    print(f"Pago en estado {status}, no se crea matrícula")
-    return {
-        "status": "pending",
-        "message": f"Pago en estado: {status}",
-        "payment_id": our_payment["id"],
-    }
+    )
+    logger.info("Enrollment created | user=%s course=%s", uid, cid)
+
+    return {"status": "success", "message": "Pago aprobado y matrícula creada", "payment_id": our_payment["id"]}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
