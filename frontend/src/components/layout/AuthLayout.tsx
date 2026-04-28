@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Navbar } from '@/components/layout/Navbar'
 
 interface AuthLayoutProps {
   title: string
@@ -35,7 +36,9 @@ function AuthIllustration() {
 
 export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen grid auth-grid bg-canvas">
+    <>
+    <Navbar />
+    <div className="min-h-[calc(100vh-4rem)] grid auth-grid bg-canvas">
       {/* Left – illustration panel */}
       <div className="bg-auth-side hidden md:flex flex-col items-center justify-center px-12 py-[60px] gap-8">
         <div className="text-center">
@@ -74,5 +77,6 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
         </div>
       </div>
     </div>
+    </>
   )
 }

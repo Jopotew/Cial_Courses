@@ -139,6 +139,9 @@ def create_payment_preference(
             "Por favor completá o cancelá los pagos pendientes antes de crear uno nuevo."
         )
     
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
+    backend_url = settings.BACKEND_URL.rstrip("/")
+
     # Crear preferencia en MercadoPago
     preference_data = {
         "items": [
@@ -150,12 +153,13 @@ def create_payment_preference(
             }
         ],
         "back_urls": {
-            "success": f"{settings.FRONTEND_URL}/payment/success",
-            "failure": f"{settings.FRONTEND_URL}/payment/failure",
-            "pending": f"{settings.FRONTEND_URL}/payment/pending",
+            "success": f"{frontend_url}/payment/success",
+            "failure": f"{frontend_url}/payment/failure",
+            "pending": f"{frontend_url}/payment/pending",
         },
-        "notification_url": f"{settings.BACKEND_URL}/api/v1/webhooks/mercadopago",
-        "external_reference": str(user_id),  # Para identificar al usuario en el webhook
+        "auto_return": "approved",
+        "notification_url": f"{backend_url}/api/v1/webhooks/mercadopago",
+        "external_reference": str(user_id),
     }
     
     # Crear preferencia

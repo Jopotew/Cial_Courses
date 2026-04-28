@@ -143,12 +143,14 @@ def login(data: UserLoginRequest, response: Response):
     refresh_token = create_refresh_token(user_id=user_id)
 
     # Guardar refresh token en httpOnly cookie
+    from app.core.config import get_settings as _get_settings
+    _is_prod = _get_settings().BACKEND_URL.startswith("https://")
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,       # True en producción
-        samesite="lax",
+        secure=_is_prod,
+        samesite="none" if _is_prod else "lax",
         max_age=7 * 24 * 60 * 60,
     )
 
@@ -221,7 +223,13 @@ def refresh_token(refresh_token: str = Cookie(default=None)):
 @router.post("/logout", response_model=MessageResponse)
 def logout(response: Response, current_user: dict = Depends(get_current_user)):
     """Cierra sesión eliminando el refresh token de la cookie."""
-    response.delete_cookie(key="refresh_token")
+    from app.core.config import get_settings as _get_settings
+    _is_prod = _get_settings().BACKEND_URL.startswith("https://")
+    response.delete_cookie(
+        key="refresh_token",
+        secure=_is_prod,
+        samesite="none" if _is_prod else "lax",
+    )
     return MessageResponse(message="Sesión cerrada correctamente.")
 
 

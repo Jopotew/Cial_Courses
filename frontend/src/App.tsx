@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { Navbar } from '@/components/layout/Navbar'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { useAuthStore } from '@/store/authStore'
+import { authApi } from '@/api/auth'
 
 import { Landing } from '@/pages/Landing'
 import { Catalog } from '@/pages/Catalog'
@@ -38,6 +40,37 @@ function AdminRoute() {
 }
 
 export function App() {
+  const { login, isAuthenticated } = useAuthStore()
+  const [initialized, setInitialized] = useState(false)
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setInitialized(true)
+      return
+    }
+    const token = localStorage.getItem('access_token')
+    if (!token) {
+      setInitialized(true)
+      return
+    }
+    // Token found — restore user. If 401, the axios interceptor tries refresh automatically.
+    authApi.me()
+      .then(login)
+      .catch(() => {})
+      .finally(() => setInitialized(true))
+  }, [])
+
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-canvas">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-slate-400 font-medium">Cargando…</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Routes>
       {/* Auth routes (no navbar) */}
