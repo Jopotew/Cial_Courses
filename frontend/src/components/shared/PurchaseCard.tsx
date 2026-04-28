@@ -38,11 +38,12 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
         await enrollmentsApi.enroll(course.id)
         enroll(course.id)
       } else {
-        const { sandbox_init_point } = await paymentsApi.create(course.id)
-        if (sandbox_init_point === '#mock-payment') {
+        const { init_point } = await paymentsApi.create(course.id)
+        if (init_point === '#mock-payment') {
           enroll(course.id)
         } else {
-          window.location.href = sandbox_init_point
+          sessionStorage.setItem('mp_return_url', `/courses/${course.id}`)
+          window.location.href = init_point
         }
       }
     } catch {

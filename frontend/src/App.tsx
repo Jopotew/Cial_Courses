@@ -16,6 +16,7 @@ import { Profile } from '@/pages/student/Profile'
 import { AdminOverview } from '@/pages/admin/Overview'
 import { AdminCourses } from '@/pages/admin/Courses'
 import { AdminUsers } from '@/pages/admin/Users'
+import { PaymentResult } from '@/pages/PaymentResult'
 
 function MainLayout() {
   return (
@@ -76,6 +77,11 @@ export function App() {
       {/* Auth routes (no navbar) */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+
+      {/* MercadoPago back_urls */}
+      <Route path="/payment/success" element={<PaymentResult result="success" />} />
+      <Route path="/payment/failure" element={<PaymentResult result="failure" />} />
+      <Route path="/payment/pending" element={<PaymentResult result="pending" />} />
 
       {/* Admin routes */}
       <Route element={<AdminRoute />}>

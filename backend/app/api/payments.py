@@ -156,6 +156,26 @@ def get_payment(
 # Endpoints de admin
 # ──────────────────────────────────────────────────────────────────────────────
 
+@router.patch("/cancel-by-preference/{preference_id}", status_code=200)
+def cancel_payment_by_preference(
+    preference_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Cancela un pago pendiente por preference_id.
+    Se llama cuando el usuario vuelve de MercadoPago sin completar el pago.
+    """
+    payment = payment_service.get_payment_by_preference_id(preference_id)
+    if payment is None:
+        return {"message": "Pago no encontrado."}
+    if payment["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tenés permiso.")
+    if payment["status"] != "pending":
+        return {"message": "El pago ya fue procesado."}
+    payment_service.update_payment_status(UUID(payment["id"]), "cancelled")
+    return {"message": "Pago cancelado."}
+
+
 @router.get("/admin/all", response_model=list[PaymentListResponse])
 def list_all_payments(
     status_filter: str | None = None,
