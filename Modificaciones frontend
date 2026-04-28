@@ -1,3 +1,6 @@
-1. La barra de busqueda debe estar en el login y registro
+El home, no debe poner crear cuenta si ya estas iniciado en la sesion. 
 
-2. Cuando haces refresh se pierde el user. No hay cookies. 
+No te debe mandar a una muestra de videos cuando entras al curso, 
+sino que te manda a la pagina del curso. 
+
+
