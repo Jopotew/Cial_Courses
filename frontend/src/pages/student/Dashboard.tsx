@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { Button } from '@/components/ui'
 
 export function Dashboard() {
-  const { user, isAuthenticated, setEnrolledIds } = useAuthStore()
+  const { user, isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'learning' | 'explore'>('learning')
 
@@ -38,10 +38,6 @@ export function Dashboard() {
   const courseProgress: Record<string, number> = Object.fromEntries(
     enrolledCourses.map((c, i) => [c.id, progressResults[i]?.data ?? 0]),
   )
-
-  useEffect(() => {
-    setEnrolledIds(enrolledCourses.map((c) => c.id))
-  }, [enrolledCourses, setEnrolledIds])
 
   const enrolledIds = new Set(enrolledCourses.map((c) => c.id))
   const notEnrolled = allCourses.filter((c) => !enrolledIds.has(c.id))
