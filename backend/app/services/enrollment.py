@@ -120,32 +120,42 @@ def get_user_enrollments(user_id: UUID, active_only: bool = True) -> list[dict]:
     # Aplanar la estructura anidada para que coincida con el schema
     enrollments = []
     for enrollment in result.data:
-        if enrollment.get("courses"):
-            course = enrollment["courses"]
-            
-            # Campos del curso
-            enrollment["title"] = course.get("title")
-            enrollment["subtitle"] = course.get("subtitle")
-            enrollment["description"] = course.get("description")
-            enrollment["instructor_name"] = course.get("instructor_name")
-            enrollment["instructor_title"] = course.get("instructor_title")
-            enrollment["price"] = course.get("price")
-            enrollment["original_price"] = course.get("original_price")
-            enrollment["level"] = course.get("level", "basico")
-            enrollment["thumbnail_url"] = course.get("thumbnail_url")
-            enrollment["category_id"] = course.get("category_id")
-            
-            # Campos de la categoría
-            if course.get("categories"):
-                enrollment["category_name"] = course["categories"]["name"]
-            else:
-                enrollment["category_name"] = "Sin categoría"
-            
-            # Eliminar objeto anidado
-            del enrollment["courses"]
-        
+        course = enrollment.get("courses")
+
+        # Fallback: si el JOIN no trajo datos, buscar el curso por separado
+        if not course and enrollment.get("course_id"):
+            from app.services import course as course_svc
+            course = course_svc.get_course_by_id(
+                enrollment["course_id"], include_unpublished=True
+            )
+
+        if not course:
+            # Sin datos del curso no se puede armar la respuesta — omitir
+            continue
+
+        enrollment["title"] = course.get("title", "")
+        enrollment["subtitle"] = course.get("subtitle")
+        enrollment["description"] = course.get("description", "")
+        enrollment["instructor_name"] = course.get("instructor_name", "")
+        enrollment["instructor_title"] = course.get("instructor_title")
+        enrollment["price"] = course.get("price", 0)
+        enrollment["original_price"] = course.get("original_price")
+        enrollment["level"] = course.get("level", "basico")
+        enrollment["thumbnail_url"] = course.get("thumbnail_url")
+        enrollment["category_id"] = course.get("category_id")
+
+        # Categoría: puede venir como dict (JOIN) o como campo plano (fallback)
+        cats = course.get("categories")
+        if isinstance(cats, dict):
+            enrollment["category_name"] = cats.get("name", "Sin categoría")
+        elif isinstance(cats, list) and cats:
+            enrollment["category_name"] = cats[0].get("name", "Sin categoría")
+        else:
+            enrollment["category_name"] = "Sin categoría"
+
+        enrollment.pop("courses", None)
         enrollments.append(enrollment)
-    
+
     return enrollments
 
 
