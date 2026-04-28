@@ -84,12 +84,15 @@ def create_payment(
         )
     
     # Crear preferencia de pago
-    result = payment_service.create_payment_preference(
-        user_id=user_id,
-        data=data,
-        course_title=course["title"],
-        course_price=float(course["price"]),
-    )
+    try:
+        result = payment_service.create_payment_preference(
+            user_id=user_id,
+            data=data,
+            course_title=course["title"],
+            course_price=float(course["price"]),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     
     return PaymentCreateResponse(
         payment_id=UUID(result["payment_id"]),

@@ -160,9 +160,24 @@ def create_payment_preference(
     
     # Crear preferencia
     preference = sdk.preference().create(preference_data)
-    preference_id = preference["response"]["id"]
-    init_point = preference["response"]["init_point"]
-    sandbox_init_point = preference["response"]["sandbox_init_point"]
+    mp_status = preference.get("status")
+    mp_response = preference.get("response", {})
+
+    if mp_status not in (200, 201) or "id" not in mp_response:
+        import logging
+        logging.getLogger("aulacal").error(
+            "MercadoPago preference creation failed | status=%s | response=%s",
+            mp_status,
+            mp_response,
+        )
+        raise ValueError(
+            f"Error al crear preferencia en MercadoPago (status {mp_status}): "
+            f"{mp_response.get('message') or mp_response}"
+        )
+
+    preference_id = mp_response["id"]
+    init_point = mp_response["init_point"]
+    sandbox_init_point = mp_response.get("sandbox_init_point", mp_response["init_point"])
     
     # Guardar pago en DB
     result = _client().table("payments").insert({
@@ -173,7 +188,7 @@ def create_payment_preference(
         "preference_id": preference_id,
         "status": "pending",
         "payment_type": data.payment_type,
-        "mercadopago_data": preference["response"],
+        "mercadopago_data": mp_response,
     }).execute()
     
     payment = result.data[0]
