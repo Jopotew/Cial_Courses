@@ -1,0 +1,13 @@
+1. El home, no debe poner crear cuenta si ya estas iniciado en la sesion. 
+
+2. No te debe mandar a una muestra de videos cuando entras al curso, 
+sino que te manda a la pagina del curso. 
+
+3. No se puede modificar un curso (PANEL ADMIN)
+    3.1 No se pueden agregar los videos o documentos. 
+    3.2 No se pueden modificar los videos o documentos.
+    3.3 Deberia de haber una opcion para desactivar el curso, no solo eliminarlo
+
+4. Cambiar como se ve cuando tenes un curso. No es lo mismo pagarlo, a si ya lo pagaste. 
+
+5. 

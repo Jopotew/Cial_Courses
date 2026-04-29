@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Course } from '@/types'
 import { Button } from '@/components/ui'
 import { formatPrice } from '@/lib/utils'
@@ -21,10 +22,19 @@ const includes = [
 
 export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
   const navigate = useNavigate()
-  const { isAuthenticated, enrolledCourseIds, enroll } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
+  const queryClient = useQueryClient()
   const [purchasing, setPurchasing] = useState(false)
 
-  const isEnrolled = enrolledCourseIds.includes(course.id)
+  // Use the same cached query as Dashboard — zero extra requests if already fetched
+  const { data: enrolledCourses = [] } = useQuery({
+    queryKey: ['my-courses'],
+    queryFn: enrollmentsApi.myCourses,
+    enabled: isAuthenticated,
+  })
+
+  const isEnrolled = enrolledCourses.some((c) => c.id === course.id)
+
   const discount =
     (course.originalPrice ?? 0) > course.price
       ? Math.round((1 - course.price / course.originalPrice!) * 100)
@@ -36,18 +46,18 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
     try {
       if (course.free) {
         await enrollmentsApi.enroll(course.id)
-        enroll(course.id)
+        await queryClient.invalidateQueries({ queryKey: ['my-courses'] })
       } else {
         const { init_point } = await paymentsApi.create(course.id)
         if (init_point === '#mock-payment') {
-          enroll(course.id)
+          await queryClient.invalidateQueries({ queryKey: ['my-courses'] })
         } else {
           sessionStorage.setItem('mp_return_url', `/courses/${course.id}`)
           window.location.href = init_point
         }
       }
     } catch {
-      // payment error — leave purchasing=false so button resets
+      // leave purchasing=false so button resets
     } finally {
       setPurchasing(false)
     }

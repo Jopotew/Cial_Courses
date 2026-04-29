@@ -8,6 +8,7 @@ import { CourseCard } from '@/components/shared/CourseCard'
 import { SectionHeader } from '@/components/shared/SectionHeader'
 import { Footer } from '@/components/layout/Footer'
 import { Button } from '@/components/ui'
+import { useAuthStore } from '@/store/authStore'
 
 export function Landing() {
   const { data: courses = [] } = useQuery({ queryKey: ['courses'], queryFn: coursesApi.list })
@@ -197,6 +198,7 @@ function FeaturedSection({ courses }: { courses: Course[] }) {
 
 function CtaBanner() {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
   return (
     <section className="bg-cta-gradient px-6" style={{ padding: 'clamp(40px,6vw,72px) 24px' }}>
       <div className="max-w-[700px] mx-auto text-center">
@@ -204,26 +206,49 @@ function CtaBanner() {
           className="font-black text-white mb-4 tracking-tight"
           style={{ fontSize: 'clamp(24px,4vw,38px)' }}
         >
-          Comenzá tu formación hoy
+          {isAuthenticated ? 'Seguí aprendiendo hoy' : 'Comenzá tu formación hoy'}
         </h2>
         <p className="text-base text-white/80 leading-relaxed mb-8">
-          Accedé a cursos gratuitos y de pago. Avanzá a tu ritmo y obtené tu certificado.
+          {isAuthenticated
+            ? 'Continuá donde lo dejaste o explorá nuevos cursos especializados.'
+            : 'Accedé a cursos gratuitos y de pago. Avanzá a tu ritmo y obtené tu certificado.'}
         </p>
         <div className="flex gap-3.5 justify-center flex-wrap">
-          <Button
-            size="lg"
-            style={{ background: '#fff', color: '#7c3aed' }}
-            onClick={() => navigate('/register')}
-          >
-            Crear cuenta gratis
-          </Button>
-          <Button
-            size="lg"
-            style={{ background: 'transparent', color: '#fff', border: '2px solid rgba(255,255,255,.5)' }}
-            onClick={() => navigate('/catalog')}
-          >
-            Ver cursos
-          </Button>
+          {isAuthenticated ? (
+            <>
+              <Button
+                size="lg"
+                style={{ background: '#fff', color: '#7c3aed' }}
+                onClick={() => navigate('/dashboard')}
+              >
+                Mi aprendizaje
+              </Button>
+              <Button
+                size="lg"
+                style={{ background: 'transparent', color: '#fff', border: '2px solid rgba(255,255,255,.5)' }}
+                onClick={() => navigate('/catalog')}
+              >
+                Explorar cursos
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="lg"
+                style={{ background: '#fff', color: '#7c3aed' }}
+                onClick={() => navigate('/register')}
+              >
+                Crear cuenta gratis
+              </Button>
+              <Button
+                size="lg"
+                style={{ background: 'transparent', color: '#fff', border: '2px solid rgba(255,255,255,.5)' }}
+                onClick={() => navigate('/catalog')}
+              >
+                Ver cursos
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </section>
