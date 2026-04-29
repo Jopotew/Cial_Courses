@@ -112,8 +112,8 @@ def create_video(
     data: VideoCreateRequest,
     video_file: BinaryIO,
     video_filename: str,
-    thumbnail_file: BinaryIO,
-    thumbnail_filename: str,
+    thumbnail_file: Optional[BinaryIO] = None,
+    thumbnail_filename: Optional[str] = None,
 ) -> dict:
     """
     Crea un nuevo video y sube los archivos al storage.
@@ -138,7 +138,7 @@ def create_video(
     duration = get_video_duration(video_file)
     
     # Crear registro en DB primero (para obtener el UUID)
-    result = _client().table("videos").insert({
+    insert_data: dict = {
         "course_id": str(course_id),
         "title": data.title,
         "description": data.description,
@@ -147,7 +147,10 @@ def create_video(
         "storage_provider": "supabase",
         "storage_file_id": "pending",
         "is_published": False,
-    }).execute()
+    }
+    if data.module_id is not None:
+        insert_data["module_id"] = str(data.module_id)
+    result = _client().table("videos").insert(insert_data).execute()
     
     video = result.data[0]
     video_id = UUID(video["id"])
@@ -160,20 +163,22 @@ def create_video(
         filename=video_filename,
     )
     
-    # Subir thumbnail
-    uploaded_thumb = storage.upload_thumbnail(
-        file=thumbnail_file,
-        video_id=video_id,
-        filename=thumbnail_filename,
-    )
-    
-    # Actualizar registro con metadata del storage
-    updated = _client().table("videos").update({
+    # Subir thumbnail (opcional)
+    storage_update: dict = {
         "storage_file_id": uploaded_video.file_id,
         "file_size_bytes": uploaded_video.file_size,
-        "thumbnail_file_id": uploaded_thumb.file_id,
         "updated_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", str(video_id)).execute()
+    }
+    if thumbnail_file and thumbnail_filename:
+        uploaded_thumb = storage.upload_thumbnail(
+            file=thumbnail_file,
+            video_id=video_id,
+            filename=thumbnail_filename,
+        )
+        storage_update["thumbnail_file_id"] = uploaded_thumb.file_id
+
+    # Actualizar registro con metadata del storage
+    updated = _client().table("videos").update(storage_update).eq("id", str(video_id)).execute()
     
     return updated.data[0]
 
@@ -204,7 +209,7 @@ def update_video(
     Returns:
         Diccionario con los datos actualizados.
     """
-    updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    updates: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
 
     # Actualizar metadata
     if data.title is not None:
@@ -213,6 +218,8 @@ def update_video(
         updates["description"] = data.description
     if data.order is not None:
         updates["order"] = data.order
+    if data.module_id is not None:
+        updates["module_id"] = str(data.module_id)
 
     # Si se reemplaza el video
     if video_file and video_filename:

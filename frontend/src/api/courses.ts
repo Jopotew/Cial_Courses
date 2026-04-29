@@ -167,4 +167,30 @@ export const coursesApi = {
     }
     await client.delete(`/courses/${id}`)
   },
+
+  /** Admin: get course by ID including unpublished */
+  getAdmin: async (id: string): Promise<Record<string, unknown>> => {
+    const res = await client.get(`/courses/admin/${id}`)
+    return res.data as Record<string, unknown>
+  },
+
+  /** Admin: update course with raw API field names */
+  updateAdmin: async (
+    id: string,
+    data: {
+      title?: string
+      subtitle?: string
+      description?: string
+      instructor_name?: string
+      instructor_title?: string
+      category_id?: string
+      level?: string
+      price?: number
+      original_price?: number
+      featured?: boolean
+    },
+  ): Promise<Record<string, unknown>> => {
+    const res = await client.patch(`/courses/${id}`, data)
+    return res.data as Record<string, unknown>
+  },
 }

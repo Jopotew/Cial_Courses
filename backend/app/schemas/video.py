@@ -37,6 +37,10 @@ class VideoCreateRequest(BaseModel):
         description="Orden del video dentro del curso (1, 2, 3...). Si no se especifica, se asigna automáticamente el siguiente disponible.",
         examples=[1],
     )
+    module_id: UUID | None = Field(
+        default=None,
+        description="UUID del módulo al que pertenece este video (opcional)",
+    )
 
 
 class VideoUpdateRequest(BaseModel):
@@ -49,6 +53,7 @@ class VideoUpdateRequest(BaseModel):
     )
     description: str | None = None
     order: int | None = Field(default=None, ge=1)
+    module_id: UUID | None = None
 
 
 class VideoPublishRequest(BaseModel):
@@ -74,6 +79,7 @@ class VideoResponse(BaseModel):
 
     id: UUID
     course_id: UUID
+    module_id: UUID | None = None
     title: str
     description: str | None = None
     order: int

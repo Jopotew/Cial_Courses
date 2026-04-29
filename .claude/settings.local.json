@@ -8,7 +8,10 @@
       "mcp__claude_ai_Supabase__list_tables",
       "mcp__claude_ai_Supabase__apply_migration",
       "mcp__claude_ai_Supabase__list_projects",
-      "mcp__claude_ai_Supabase__execute_sql"
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(python -c \"from app.api import modules, course_files; from app.services import module, course_file; print\\('OK'\\)\")",
+      "Bash(python -m py_compile app/schemas/module.py app/schemas/course_file.py app/services/module.py app/services/course_file.py app/api/modules.py app/api/course_files.py)",
+      "Bash(python -m py_compile app/api/videos.py app/services/video.py app/schemas/video.py app/main.py)"
     ]
   }
 }

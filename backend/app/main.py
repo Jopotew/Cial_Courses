@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import auth, users, categories, courses, videos, video_progress, enrollments, payments, webhooks, subscriptions, admin, emails
+from app.api import auth, users, categories, courses, videos, video_progress, enrollments, payments, webhooks, subscriptions, admin, emails, modules, course_files
 
 from contextlib import asynccontextmanager
 from app.services import scheduler as scheduler_service
@@ -92,6 +92,8 @@ app.include_router(payments.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(modules.router, prefix="/api/v1")
+app.include_router(course_files.router, prefix="/api/v1")
 
 
 @app.get("/")

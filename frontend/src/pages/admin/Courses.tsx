@@ -95,7 +95,8 @@ export function AdminCourses() {
                   <td className="px-5 py-3.5 text-sm text-gray-700">{course.students}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setModal(course)}>Editar</Button>
+                      <Button variant="primary" size="sm" onClick={() => navigate(`/admin/courses/${course.id}/edit`)}>Editor</Button>
+                      <Button variant="outline" size="sm" onClick={() => setModal(course)}>Info</Button>
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/courses/${course.id}`)}>Ver</Button>
                       <button
                         onClick={() => setDeleteConfirm(course.id)}

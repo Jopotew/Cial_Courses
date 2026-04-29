@@ -16,6 +16,7 @@ import { Profile } from '@/pages/student/Profile'
 import { AdminOverview } from '@/pages/admin/Overview'
 import { AdminCourses } from '@/pages/admin/Courses'
 import { AdminUsers } from '@/pages/admin/Users'
+import { CourseEditor } from '@/pages/admin/CourseEditor'
 import { PaymentResult } from '@/pages/PaymentResult'
 import { CourseLearn } from '@/pages/CourseLearn'
 
@@ -90,6 +91,10 @@ export function App() {
           <Route path="/admin" element={<AdminOverview />} />
           <Route path="/admin/courses" element={<AdminCourses />} />
           <Route path="/admin/users" element={<AdminUsers />} />
+        </Route>
+        {/* Course editor — full-page, outside AdminLayout */}
+        <Route element={<><Navbar /></>}>
+          <Route path="/admin/courses/:id/edit" element={<CourseEditor />} />
         </Route>
       </Route>
 
