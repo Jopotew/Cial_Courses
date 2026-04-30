@@ -77,31 +77,55 @@ export function PurchaseCard({ course, sticky, totalLessons = 0, totalDuration =
     >
       {/* Thumbnail */}
       <div
-        className="h-[140px] flex items-center justify-center"
+        className="flex items-center justify-center"
         style={{
-          background: `linear-gradient(135deg, ${course.cardColor}dd, ${course.cardColor}88)`,
+          height: isEnrolled ? 130 : 140,
+          background: isEnrolled
+            ? 'linear-gradient(135deg, #4c1d95, #7c3aed, #a78bfa)'
+            : `linear-gradient(135deg, ${course.cardColor}dd, ${course.cardColor}88)`,
           position: 'relative',
+          flexDirection: 'column',
+          gap: isEnrolled ? 8 : 0,
         }}
       >
-        <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center text-[22px] font-extrabold text-white"
-          style={{ background: 'rgba(255,255,255,.25)' }}
-        >
-          {course.instructorInitials}
-        </div>
+        {isEnrolled ? (
+          <>
+            <div
+              style={{
+                width: 52, height: 52, borderRadius: '50%',
+                background: 'rgba(255,255,255,.22)', border: '2px solid rgba(255,255,255,.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="white">
+                <path d="M5 3l13 7-13 7V3z" />
+              </svg>
+            </div>
+            <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.9)', margin: 0 }}>
+              Continuar donde dejaste
+            </p>
+          </>
+        ) : (
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-[22px] font-extrabold text-white"
+            style={{ background: 'rgba(255,255,255,.25)' }}
+          >
+            {course.instructorInitials}
+          </div>
+        )}
 
         {isEnrolled && (
           <div
             style={{
-              position: 'absolute', top: 12, right: 12,
+              position: 'absolute', top: 10, right: 10,
               background: '#059669', color: '#fff',
-              borderRadius: 8, padding: '4px 10px',
-              fontSize: 12, fontWeight: 700,
-              display: 'flex', alignItems: 'center', gap: 5,
+              borderRadius: 8, padding: '3px 8px',
+              fontSize: 11, fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-              <path d="M2 5.5l2.5 2.5 4.5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2 5l2 2 4-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Inscripto
           </div>
@@ -111,22 +135,19 @@ export function PurchaseCard({ course, sticky, totalLessons = 0, totalDuration =
       <div className="p-[22px]">
         {isEnrolled ? (
           <>
-            <p className="text-sm font-bold text-gray-800 mb-3">Continuar donde dejaste</p>
-
-            {/* Progress bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <div style={{ flex: 1, height: 8, background: '#f0ebfd', borderRadius: 99, overflow: 'hidden' }}>
-                <div
-                  style={{
-                    width: `${progress}%`, height: '100%',
-                    background: 'linear-gradient(90deg, #7c3aed, #a78bfa)',
-                    borderRadius: 99, transition: 'width .5s',
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#7c3aed', flexShrink: 0 }}>
-                {progress}%
-              </span>
+            {/* Progress */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Tu progreso</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#7c3aed' }}>{progress}%</span>
+            </div>
+            <div style={{ height: 8, background: '#f0ebfd', borderRadius: 99, overflow: 'hidden', marginBottom: 6 }}>
+              <div
+                style={{
+                  width: `${progress}%`, height: '100%',
+                  background: 'linear-gradient(90deg, #7c3aed, #a78bfa)',
+                  borderRadius: 99, transition: 'width .5s',
+                }}
+              />
             </div>
             {totalLessons > 0 && (
               <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>

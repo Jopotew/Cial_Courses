@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { coursesApi } from '@/api/courses'
 import { modulesApi, type CourseModule } from '@/api/modules'
 import { courseFilesApi, type CourseFile } from '@/api/courseFiles'
+import { enrollmentsApi } from '@/api/enrollments'
+import { progressApi } from '@/api/progress'
 import { Badge, StarRating } from '@/components/ui'
 import { PurchaseCard } from '@/components/shared/PurchaseCard'
 import { useAuthStore } from '@/store/authStore'
@@ -91,11 +93,26 @@ export function CourseDetail() {
     throwOnError: false,
   })
 
+  // Enrollment + progress — same query keys as PurchaseCard, zero extra requests
+  const { data: enrolledCourses = [] } = useQuery({
+    queryKey: ['my-courses'],
+    queryFn: enrollmentsApi.myCourses,
+    enabled: isAuthenticated,
+  })
+  const isEnrolled = !!id && enrolledCourses.some((c) => c.id === id)
+
+  const { data: progress = 0 } = useQuery({
+    queryKey: ['progress', id],
+    queryFn: () => progressApi.getCourse(id!),
+    enabled: isEnrolled,
+  })
+
   // Compute totals from real module data
   const allVideos = modules.flatMap((m: CourseModule) => m.videos)
   const totalLessons = allVideos.length
   const totalSeconds = allVideos.reduce((sum, v) => sum + (v.duration_seconds ?? 0), 0)
   const totalDuration = fmtDuration(totalSeconds)
+  const completedCount = totalLessons > 0 ? Math.round((progress / 100) * totalLessons) : 0
 
   if (isLoading || !course) {
     return (
@@ -109,13 +126,13 @@ export function CourseDetail() {
     <div className="min-h-screen bg-canvas">
       {/* Hero */}
       <div
-        className="px-6"
         style={{
           background: 'linear-gradient(135deg, #1e0a3c, #3b1a7a)',
           padding: 'clamp(32px,5vw,56px) 24px',
         }}
       >
         <div className="max-w-[1100px] mx-auto detail-hero gap-10 items-start">
+          {/* ── Left column ── */}
           <div>
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -131,9 +148,27 @@ export function CourseDetail() {
               </Link>
             </div>
 
-            <Badge variant={course.free ? 'green' : 'default'}>
-              {course.free ? 'Gratis' : course.level ?? 'General'}
-            </Badge>
+            {/* Badges row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {isEnrolled && (
+                <span
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: '#059669', color: '#fff',
+                    borderRadius: 8, padding: '4px 10px',
+                    fontSize: 12, fontWeight: 700,
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                    <path d="M2 5.5l2.5 2.5 4.5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Inscripto
+                </span>
+              )}
+              <Badge variant={course.free ? 'green' : 'default'}>
+                {course.free ? 'Gratis' : course.level ?? 'General'}
+              </Badge>
+            </div>
 
             <h1
               className="font-black text-white mt-3 mb-2.5 leading-[1.15] tracking-tight"
@@ -142,7 +177,33 @@ export function CourseDetail() {
               {course.title}
             </h1>
 
-            <div className="flex items-center gap-3 flex-wrap">
+            {course.subtitle && (
+              <p className="text-base text-white/75 leading-relaxed mb-4">{course.subtitle}</p>
+            )}
+
+            {/* Progress bar — fills empty space when enrolled */}
+            {isEnrolled && totalLessons > 0 && (
+              <div style={{ margin: '18px 0', maxWidth: 480 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.65)' }}>
+                    {completedCount} de {totalLessons} clases completadas
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa' }}>{progress}%</span>
+                </div>
+                <div style={{ height: 6, background: 'rgba(255,255,255,.18)', borderRadius: 99, overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${progress}%`, height: '100%',
+                      background: 'linear-gradient(90deg, #a78bfa, #c4b5fd)',
+                      borderRadius: 99, transition: 'width .5s',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Instructor + stats */}
+            <div className="flex items-center gap-3 flex-wrap mt-2">
               <div className="flex items-center gap-2">
                 <div
                   className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-bold text-white"
@@ -178,7 +239,7 @@ export function CourseDetail() {
             </div>
           </div>
 
-          {/* Purchase card in hero on desktop */}
+          {/* ── Right column: PurchaseCard in hero (desktop) ── */}
           <div className="hidden md:block">
             <PurchaseCard course={course} totalLessons={totalLessons} totalDuration={totalDuration} />
           </div>
@@ -310,12 +371,14 @@ export function CourseDetail() {
           )}
         </div>
 
-        {/* Purchase card sticky on desktop (right column) */}
-        <div className="hidden md:block">
-          <PurchaseCard course={course} sticky totalLessons={totalLessons} totalDuration={totalDuration} />
-        </div>
+        {/* Sticky purchase card in body — only when NOT enrolled (hero card serves enrolled users) */}
+        {!isEnrolled && (
+          <div className="hidden md:block">
+            <PurchaseCard course={course} sticky totalLessons={totalLessons} totalDuration={totalDuration} />
+          </div>
+        )}
 
-        {/* Purchase card mobile (bottom) */}
+        {/* Mobile card — always visible (hero card is hidden on mobile) */}
         <div className="md:hidden">
           <PurchaseCard course={course} totalLessons={totalLessons} totalDuration={totalDuration} />
         </div>
