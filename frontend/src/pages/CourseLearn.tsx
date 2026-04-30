@@ -20,6 +20,8 @@ export function CourseLearn() {
   const [loadingStream, setLoadingStream] = useState(false)
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // Cache of videoId → signed URL so the next video plays instantly
+  const urlCache = useRef<Map<string, string>>(new Map())
 
   // Course info
   const { data: course } = useQuery({
@@ -71,10 +73,11 @@ export function CourseLearn() {
   const canPrev = activeIndex > 0
   const canNext = activeIndex >= 0 && activeIndex < allVideos.length - 1
 
-  // Auto-load first video
+  // Auto-load first video and prefetch second
   useEffect(() => {
     if (allVideos.length > 0 && !activeVideoId) {
       loadVideo(allVideos[0].id)
+      if (allVideos[1]) prefetchVideo(allVideos[1].id)
     }
   }, [modules])
 
@@ -92,19 +95,41 @@ export function CourseLearn() {
     if (status === 403 || status === 404) navigate(`/courses/${id}`, { replace: true })
   }, [modulesError, modulesRawError, id, navigate, isAdmin])
 
+  async function prefetchVideo(videoId: string) {
+    if (urlCache.current.has(videoId)) return
+    try {
+      const url = await videosApi.stream(videoId)
+      urlCache.current.set(videoId, url)
+    } catch { /* silent */ }
+  }
+
   async function loadVideo(videoId: string) {
     if (videoId === activeVideoId) return
     setActiveVideoId(videoId)
-    setStreamUrl(null)
-    setLoadingStream(true)
     setSidebarOpen(false)
-    try {
-      const url = await videosApi.stream(videoId)
-      setStreamUrl(url)
-    } catch {
-      setStreamUrl(null)
-    } finally {
+
+    const cached = urlCache.current.get(videoId)
+    if (cached) {
+      setStreamUrl(cached)
       setLoadingStream(false)
+    } else {
+      setStreamUrl(null)
+      setLoadingStream(true)
+      try {
+        const url = await videosApi.stream(videoId)
+        urlCache.current.set(videoId, url)
+        setStreamUrl(url)
+      } catch {
+        setStreamUrl(null)
+      } finally {
+        setLoadingStream(false)
+      }
+    }
+
+    // Prefetch the next video in the background
+    const idx = allVideos.findIndex((v) => v.id === videoId)
+    if (idx >= 0 && idx + 1 < allVideos.length) {
+      prefetchVideo(allVideos[idx + 1].id)
     }
   }
 
@@ -129,13 +154,13 @@ export function CourseLearn() {
   const totalCount = allVideos.length
 
   return (
-    <div style={{ background: '#0f0a1e', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff' }}>
+    <div style={{ background: '#f8f5ff', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#1a1a2e' }}>
       {/* ── Top bar ── */}
       <header
         style={{
           display: 'flex', alignItems: 'center', gap: 16,
           padding: '0 20px', height: 56, flexShrink: 0,
-          background: '#1a1330', borderBottom: '1px solid rgba(255,255,255,.07)',
+          background: '#1e0a3c', borderBottom: '1px solid rgba(255,255,255,.1)',
           zIndex: 10,
         }}
       >
@@ -221,17 +246,17 @@ export function CourseLearn() {
           </div>
 
           {/* ── Info strip below player ── */}
-          <div style={{ flex: 1, background: '#1a1330', padding: '20px 28px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, background: '#fff', padding: '20px 28px', overflowY: 'auto', display: 'flex', flexDirection: 'column', borderTop: '1px solid #f0ebfd' }}>
             {activeModule && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#a78bfa', background: 'rgba(124,58,237,.2)', borderRadius: 6, padding: '3px 10px', alignSelf: 'flex-start', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', background: '#ede9fe', borderRadius: 6, padding: '3px 10px', alignSelf: 'flex-start', marginBottom: 10 }}>
                 {activeModule.title}
               </span>
             )}
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: '0 0 6px', lineHeight: 1.2, letterSpacing: '-0.3px' }}>
+            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#1a1a2e', margin: '0 0 6px', lineHeight: 1.2, letterSpacing: '-0.3px' }}>
               {activeVideo?.title ?? course?.title ?? '…'}
             </h1>
             {course?.instructor && (
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', margin: '0 0 20px' }}>
+              <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px' }}>
                 {course.instructor}{course.instructorTitle ? ` · ${course.instructorTitle}` : ''}
               </p>
             )}
@@ -244,8 +269,8 @@ export function CourseLearn() {
                   disabled={!canPrev}
                   style={{
                     padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                    border: '1.5px solid rgba(255,255,255,.15)', background: 'transparent',
-                    color: canPrev ? '#fff' : 'rgba(255,255,255,.2)',
+                    border: '1.5px solid #e2d9f7', background: 'transparent',
+                    color: canPrev ? '#1a1a2e' : '#c4b5fd',
                     cursor: canPrev ? 'pointer' : 'default', fontFamily: 'inherit',
                   }}
                 >
@@ -257,8 +282,8 @@ export function CourseLearn() {
                   style={{
                     padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700,
                     border: 'none', fontFamily: 'inherit',
-                    background: canNext ? '#7c3aed' : 'rgba(124,58,237,.2)',
-                    color: canNext ? '#fff' : 'rgba(255,255,255,.2)',
+                    background: canNext ? '#7c3aed' : '#ede9fe',
+                    color: canNext ? '#fff' : '#a78bfa',
                     cursor: canNext ? 'pointer' : 'default',
                   }}
                 >
@@ -274,8 +299,8 @@ export function CourseLearn() {
           className="hidden md:flex"
           style={{
             width: 310, flexShrink: 0,
-            background: '#0d0a18',
-            borderLeft: '1px solid rgba(255,255,255,.06)',
+            background: '#f8f5ff',
+            borderLeft: '1px solid #e2d9f7',
             flexDirection: 'column',
             overflowY: 'auto',
           }}
@@ -303,8 +328,8 @@ export function CourseLearn() {
           className="md:hidden"
           style={{
             position: 'fixed', top: 56, right: 0, bottom: 0,
-            width: 300, background: '#0d0a18',
-            borderLeft: '1px solid rgba(255,255,255,.06)',
+            width: 300, background: '#f8f5ff',
+            borderLeft: '1px solid #e2d9f7',
             zIndex: 40, display: 'flex', flexDirection: 'column', overflowY: 'auto',
             transform: sidebarOpen ? 'translateX(0)' : 'translateX(100%)',
             transition: 'transform .3s',
@@ -347,14 +372,14 @@ function SidebarContent({
   return (
     <>
       {/* Header */}
-      <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
-        <p style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>Contenido del curso</p>
+      <div style={{ padding: '18px 20px', borderBottom: '1px solid #e2d9f7', flexShrink: 0 }}>
+        <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>Contenido del curso</p>
         {totalCount > 0 && (
           <>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', margin: '0 0 10px' }}>
+            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 10px' }}>
               {completedCount} de {totalCount} clases completadas
             </p>
-            <div style={{ height: 4, background: 'rgba(255,255,255,.1)', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{ height: 4, background: '#e2d9f7', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#7c3aed,#a78bfa)', borderRadius: 99, transition: 'width .5s' }} />
             </div>
           </>
@@ -364,13 +389,13 @@ function SidebarContent({
       {/* Modules */}
       {modules.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(124,58,237,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
             <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
               <path d="M8 7.5l7 3.5-7 3.5V7.5z" fill="#7c3aed" />
             </svg>
           </div>
-          <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>Sin clases disponibles aún</p>
-          <p style={{ color: 'rgba(255,255,255,.25)', fontSize: 12, margin: 0 }}>El instructor está preparando el contenido.</p>
+          <p style={{ color: '#64748b', fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>Sin clases disponibles aún</p>
+          <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>El instructor está preparando el contenido.</p>
         </div>
       ) : (
         modules.map((mod) => (
@@ -410,27 +435,27 @@ function ModuleSection({
   const durationLabel = formatDuration(totalSeconds)
 
   return (
-    <div style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+    <div style={{ borderBottom: '1px solid #e2d9f7' }}>
       {/* Module header */}
       <button
         onClick={() => setExpanded((e) => !e)}
         style={{
           width: '100%', textAlign: 'left', padding: '14px 20px',
-          background: expanded ? 'rgba(255,255,255,.04)' : 'transparent',
+          background: expanded ? '#ede9fe' : 'transparent',
           border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'flex-start', gap: 10,
         }}
       >
         <svg
-          width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2" strokeLinecap="round"
+          width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"
           style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .2s', marginTop: 3, flexShrink: 0 }}
         >
           <path d="M4 2l4 4-4 4" />
         </svg>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {module.title}
           </p>
-          <p style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', margin: 0 }}>
+          <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>
             {completedInModule}/{totalInModule} clases{durationLabel ? ` · ${durationLabel}` : ''}
           </p>
         </div>
@@ -446,8 +471,7 @@ function ModuleSection({
             onClick={() => onSelect(vid.id)}
             style={{
               width: '100%', textAlign: 'left', padding: '10px 20px 10px 42px',
-              background: isActive ? 'rgba(124,58,237,.25)' : 'transparent',
-              borderLeft: `3px solid ${isActive ? '#7c3aed' : 'transparent'}`,
+              background: isActive ? '#ede9fe' : 'transparent',
               border: 'none', borderRight: 'none', borderTop: 'none', borderBottom: 'none',
               borderLeftStyle: 'solid', borderLeftWidth: 3, borderLeftColor: isActive ? '#7c3aed' : 'transparent',
               cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10,
@@ -456,8 +480,8 @@ function ModuleSection({
             {/* Completion indicator */}
             <div style={{
               width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: isDone ? '#059669' : isActive ? '#7c3aed' : 'rgba(255,255,255,.08)',
-              border: isDone || isActive ? 'none' : '1.5px solid rgba(255,255,255,.15)',
+              background: isDone ? '#059669' : isActive ? '#7c3aed' : '#e2d9f7',
+              border: 'none',
             }}>
               {isDone ? (
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
@@ -468,15 +492,15 @@ function ModuleSection({
                   <path d="M2 1l6 3.5-6 3.5V1z" />
                 </svg>
               ) : (
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.4)' }}>{idx + 1}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed' }}>{idx + 1}</span>
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? '#a78bfa' : isDone ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.75)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? '#7c3aed' : isDone ? '#94a3b8' : '#374151', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {vid.title}
               </p>
               {vid.duration_seconds != null && (
-                <p style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', margin: 0 }}>
+                <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>
                   {formatDuration(vid.duration_seconds)}
                 </p>
               )}
