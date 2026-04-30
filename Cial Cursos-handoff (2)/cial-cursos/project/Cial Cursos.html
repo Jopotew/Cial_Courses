@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CIAL Cursos — Formación continua para odontólogos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script>
+  window.CIAL = {};
+  window.CIAL.data = {
+    categories: [
+      { id: 1, name: 'Endodoncia',          count: 8,  color: '#7c3aed', bg: '#f5f3ff' },
+      { id: 2, name: 'Cirugía Oral',        count: 6,  color: '#0284c7', bg: '#e0f2fe' },
+      { id: 3, name: 'Estética Dental',     count: 12, color: '#db2777', bg: '#fce7f3' },
+      { id: 4, name: 'Periodoncia',         count: 5,  color: '#059669', bg: '#d1fae5' },
+      { id: 5, name: 'Rehabilitación Oral', count: 9,  color: '#b45309', bg: '#fef3c7' },
+      { id: 6, name: 'Odontopediatría',     count: 4,  color: '#7c3aed', bg: '#ede9fe' },
+    ],
+    courses: [
+      { id:1, title:'Endodoncia Clínica Avanzada', subtitle:'Instrumentación rotatoria y obturación termoplástica', instructor:'Dr. Martín Rodríguez', instructorInitials:'MR', instructorTitle:'Especialista en Endodoncia · UBA', price:12900, originalPrice:18900, rating:4.8, reviewCount:127, students:342, duration:'18h 30min', lessons:47, level:'Avanzado', categoryId:1, category:'Endodoncia', featured:true, free:false, cardColor:'#7c3aed', description:'Domina las técnicas más modernas en tratamientos de conducto. Abarca anatomía del sistema de conductos, instrumentación rotatoria y obturación termoplástica, con casos clínicos reales.', modules:[{title:'Introducción a la Endodoncia Moderna',lessons:5,duration:'2h 10min'},{title:'Anatomía del sistema de conductos',lessons:8,duration:'3h 45min'},{title:'Instrumentación rotatoria',lessons:12,duration:'5h 20min'},{title:'Obturación termoplástica',lessons:10,duration:'4h 30min'},{title:'Casos clínicos complejos',lessons:12,duration:'2h 45min'}], resources:[{id:1,name:'Guía de instrumentación rotatoria.pdf',type:'doc',ext:'PDF'},{id:2,name:'Atlas de anatomía endodóntica.pdf',type:'doc',ext:'PDF'},{id:3,name:'Protocolo de obturación termoplástica.docx',type:'doc',ext:'DOC'},{id:4,name:'Casos clínicos — Módulo 5.pptx',type:'doc',ext:'PPT'}] },
+      { id:2, title:'Estética Dental Integral', subtitle:'Carillas, blanqueamiento y restauraciones estéticas', instructor:'Dra. Laura Fernández', instructorInitials:'LF', instructorTitle:'Especialista en Estética · Universidad Austral', price:9900, originalPrice:14900, rating:4.9, reviewCount:203, students:581, duration:'14h 20min', lessons:38, level:'Intermedio', categoryId:3, category:'Estética Dental', featured:true, free:false, cardColor:'#db2777', description:'Aprende las técnicas más demandadas en odontología estética. Blanqueamiento profesional, carillas de porcelana y composite, con fotografía clínica aplicada.', modules:[{title:'Principios de estética dental',lessons:4,duration:'1h 30min'},{title:'Blanqueamiento dental profesional',lessons:7,duration:'2h 50min'},{title:'Carillas de porcelana y composite',lessons:12,duration:'5h 10min'},{title:'Restauraciones estéticas directas',lessons:9,duration:'3h 20min'},{title:'Fotografía clínica aplicada',lessons:6,duration:'1h 30min'}] },
+      { id:3, title:'Cirugía Oral Básica', subtitle:'Exodoncias simples y complejas para el odontólogo general', instructor:'Dr. Carlos Méndez', instructorInitials:'CM', instructorTitle:'Cirujano Maxilofacial · Hospital Italiano', price:0, originalPrice:0, rating:4.7, reviewCount:89, students:1204, duration:'8h 15min', lessons:24, level:'Básico', categoryId:2, category:'Cirugía Oral', featured:true, free:true, cardColor:'#0284c7', description:'Curso gratuito de introducción a la cirugía oral. Instrumental quirúrgico, técnicas anestésicas y protocolo completo para exodoncias simples y complejas.', modules:[{title:'Instrumental quirúrgico',lessons:4,duration:'1h 30min'},{title:'Técnicas anestésicas',lessons:6,duration:'2h 20min'},{title:'Exodoncias simples',lessons:8,duration:'2h 45min'},{title:'Exodoncias complejas',lessons:6,duration:'1h 40min'}], resources:[{id:1,name:'Clasificación de exodoncias.pdf',type:'doc',ext:'PDF'},{id:2,name:'Ficha de consentimiento informado.docx',type:'doc',ext:'DOC'},{id:3,name:'Guía de técnicas anestésicas.pdf',type:'doc',ext:'PDF'}] },
+      { id:4, title:'Periodoncia Clínica Moderna', subtitle:'Diagnóstico y tratamiento periodontal integral', instructor:'Dra. Ana Gómez', instructorInitials:'AG', instructorTitle:'Periodoncista · UNLP', price:11500, originalPrice:16000, rating:4.6, reviewCount:74, students:198, duration:'16h 00min', lessons:42, level:'Avanzado', categoryId:4, category:'Periodoncia', featured:false, free:false, cardColor:'#059669', description:'Formación completa en periodoncia clínica. Diagnóstico, terapia básica, cirugía periodontal y mantenimiento a largo plazo.', modules:[{title:'Diagnóstico periodontal',lessons:8,duration:'3h 20min'},{title:'Terapia básica periodontal',lessons:10,duration:'4h 10min'},{title:'Cirugía periodontal',lessons:14,duration:'6h 00min'},{title:'Mantenimiento periodontal',lessons:10,duration:'2h 30min'}] },
+      { id:5, title:'Rehabilitación con Prótesis Fija', subtitle:'Coronas, puentes y preparaciones dentales paso a paso', instructor:'Dr. Jorge Palacios', instructorInitials:'JP', instructorTitle:'Especialista en Prótesis · UNC', price:14500, originalPrice:21000, rating:4.8, reviewCount:156, students:287, duration:'22h 45min', lessons:58, level:'Avanzado', categoryId:5, category:'Rehabilitación Oral', featured:false, free:false, cardColor:'#b45309', description:'El curso más completo en prótesis fija. Principios biomecánicos, preparaciones dentales, impresiones y ajuste oclusal con cementación final.', modules:[{title:'Principios de la prótesis fija',lessons:8,duration:'3h 20min'},{title:'Preparaciones dentales',lessons:14,duration:'6h 00min'},{title:'Impresiones y modelos',lessons:10,duration:'4h 10min'},{title:'Cementado y ajuste',lessons:14,duration:'6h 00min'},{title:'Casos clínicos completos',lessons:12,duration:'3h 15min'}] },
+      { id:6, title:'Odontopediatría Práctica', subtitle:'Atención integral del niño: desde bebés hasta adolescentes', instructor:'Dra. Sofía Castro', instructorInitials:'SC', instructorTitle:'Odontopediatra · Hospital Garrahan', price:8900, originalPrice:12500, rating:4.9, reviewCount:211, students:423, duration:'12h 30min', lessons:33, level:'Intermedio', categoryId:6, category:'Odontopediatría', featured:false, free:false, cardColor:'#7c3aed', description:'Formación integral en odontopediatría con enfoque en manejo de conducta, prevención y tratamientos en dentición primaria y mixta.', modules:[{title:'Atención del bebé y primera infancia',lessons:6,duration:'2h 20min'},{title:'Manejo de conducta',lessons:8,duration:'3h 10min'},{title:'Tratamientos en dentición mixta',lessons:12,duration:'4h 50min'},{title:'Urgencias pediátricas',lessons:7,duration:'2h 10min'}] },
+    ],
+    enrolledIds: [1, 3],
+    progress: { 1: 42, 3: 87 },
+    user: { name: 'María González', email: 'maria@example.com', initials: 'MG', isAdmin: true },
+    recentSales: [
+      { id:1, student:'Juan Pérez',    course:'Endodoncia Clínica Avanzada',      amount:12900, date:'24/04/2026', status:'aprobado' },
+      { id:2, student:'Laura Sánchez', course:'Estética Dental Integral',          amount:9900,  date:'23/04/2026', status:'aprobado' },
+      { id:3, student:'Carlos Ruiz',   course:'Rehabilitación con Prótesis Fija', amount:14500, date:'23/04/2026', status:'aprobado' },
+      { id:4, student:'Ana Torres',    course:'Endodoncia Clínica Avanzada',      amount:12900, date:'22/04/2026', status:'aprobado' },
+      { id:5, student:'Diego López',   course:'Odontopediatría Práctica',          amount:8900,  date:'22/04/2026', status:'pendiente' },
+      { id:6, student:'Sofía Méndez',  course:'Periodoncia Clínica Moderna',      amount:11500, date:'21/04/2026', status:'aprobado' },
+    ],
+    allUsers: [
+      { id:1, name:'Juan Pérez',    email:'juan@example.com',   initials:'JP', enrolled:2, joined:'10/01/2026', active:true  },
+      { id:2, name:'Laura Sánchez', email:'laura@example.com',  initials:'LS', enrolled:1, joined:'15/02/2026', active:true  },
+      { id:3, name:'Carlos Ruiz',   email:'carlos@example.com', initials:'CR', enrolled:3, joined:'03/03/2026', active:true  },
+      { id:4, name:'Ana Torres',    email:'ana@example.com',    initials:'AT', enrolled:1, joined:'20/03/2026', active:false },
+      { id:5, name:'Diego López',   email:'diego@example.com',  initials:'DL', enrolled:0, joined:'01/04/2026', active:true  },
+      { id:6, name:'Sofía Méndez',  email:'sofia@example.com',  initials:'SM', enrolled:2, joined:'10/04/2026', active:true  },
+    ]
+  };
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fff; color: #1a1a2e; -webkit-font-smoothing: antialiased; }
+    input, button, select, textarea { font-family: inherit; }
+
+    @media (max-width: 768px) {
+      .auth-grid        { grid-template-columns: 1fr !important; }
+      .auth-left        { display: none !important; }
+      .catalog-grid     { grid-template-columns: 1fr !important; }
+      .catalog-grid aside { display: none; }
+      .detail-hero      { grid-template-columns: 1fr !important; }
+      .detail-body      { grid-template-columns: 1fr !important; }
+      .detail-card-desktop { display: none !important; }
+      .detail-enrolled-mobile { display: block !important; }
+      .nav-links        { display: none !important; }
+      .hide-mobile      { display: none !important; }
+      .progress-thumb   { display: none !important; }
+      .admin-sidebar    { display: none !important; }
+      .admin-mobile-bar { display: flex !important; }
+      .profile-grid     { grid-template-columns: 1fr !important; }
+      .editor-layout    { flex-direction: column !important; }
+      .editor-layout > div:first-child { width: 100% !important; height: auto !important; max-height: 240px; }
+    }
+    @media (min-width: 769px) {
+      .mobile-menu     { display: none !important; }
+      .mobile-menu-btn { display: none !important; }
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f5f3ff; }
+    ::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 99px; }
+
+    #tweaks-panel {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      background: #fff; border: 1px solid #f0ebfd; border-radius: 18px;
+      box-shadow: 0 12px 48px rgba(124,58,237,.2); padding: 20px 22px;
+      width: 260px; display: none; font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    #tweaks-panel.open { display: block; }
+    .tweak-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; margin-top: 16px; }
+    .tweak-label:first-child { margin-top: 0; }
+    .tweak-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: #374151; margin-bottom: 8px; }
+    .tweak-toggle { position: relative; width: 38px; height: 22px; }
+    .tweak-toggle input { opacity: 0; width: 0; height: 0; }
+    .tweak-slider-track { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #e2d9f7; border-radius: 99px; transition: .2s; }
+    .tweak-toggle input:checked + .tweak-slider-track { background: #7c3aed; }
+    .tweak-slider-track:before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+    .tweak-toggle input:checked + .tweak-slider-track:before { transform: translateX(16px); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<div id="tweaks-panel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+    <span style="font-size:14px;font-weight:800;color:#1a1a2e;">Tweaks</span>
+    <button id="tweaks-close" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:18px;">×</button>
+  </div>
+  <div class="tweak-label">Apariencia</div>
+  <div class="tweak-row">
+    <span>Modo oscuro (nav)</span>
+    <label class="tweak-toggle"><input type="checkbox" id="tweak-dark-nav"/><span class="tweak-slider-track"></span></label>
+  </div>
+  <div class="tweak-label">Color de acento</div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;">
+    <div class="color-swatch" data-color="#7c3aed" style="width:28px;height:28px;border-radius:8px;background:#7c3aed;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 2px #7c3aed;"></div>
+    <div class="color-swatch" data-color="#0284c7" style="width:28px;height:28px;border-radius:8px;background:#0284c7;cursor:pointer;border:2px solid #fff;"></div>
+    <div class="color-swatch" data-color="#059669" style="width:28px;height:28px;border-radius:8px;background:#059669;cursor:pointer;border:2px solid #fff;"></div>
+    <div class="color-swatch" data-color="#db2777" style="width:28px;height:28px;border-radius:8px;background:#db2777;cursor:pointer;border:2px solid #fff;"></div>
+  </div>
+</div>
+
+<script type="text/babel" src="cial-ui.jsx"></script>
+<script type="text/babel" src="cial-auth.jsx"></script>
+<script type="text/babel" src="cial-landing.jsx"></script>
+<script type="text/babel" src="cial-catalog.jsx"></script>
+<script type="text/babel" src="cial-dashboard.jsx"></script>
+<script type="text/babel" src="cial-editor.jsx"></script>
+<script type="text/babel" src="cial-admin.jsx"></script>
+<script type="text/babel" src="cial-profile.jsx"></script>
+<script type="text/babel" src="cial-player.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#7c3aed",
+  "darkNav": false
+}/*EDITMODE-END*/;
+
+function App() {
+  const [page, setPage]     = useState('home');
+  const [params, setParams] = useState({});
+  const [user, setUser]     = useState(null);
+
+  function navigate(p, par = {}) {
+    setPage(p);
+    setParams(par);
+    window.scrollTo(0, 0);
+  }
+
+  function login() {
+    setUser(window.CIAL.data.user);
+    navigate('dashboard');
+  }
+
+  function logout() {
+    setUser(null);
+    navigate('home');
+  }
+
+  function updateUser(updated) {
+    setUser(updated);
+  }
+
+  const showNav = page !== 'player';
+
+  return (
+    <div>
+      {showNav && <Nav page={page} onNavigate={navigate} user={user} onLogout={logout} />}
+
+      {page === 'home'      && <LandingPage onNavigate={navigate} user={user} />}
+      {page === 'login'     && <LoginPage onNavigate={navigate} onLogin={login} />}
+      {page === 'register'  && <RegisterPage onNavigate={navigate} onLogin={login} />}
+      {page === 'catalog'   && <CatalogPage onNavigate={navigate} params={params} user={user} />}
+      {page === 'course'    && <CourseDetailPage onNavigate={navigate} params={params} user={user} />}
+      {page === 'player'    && (user
+        ? <PlayerPage onNavigate={navigate} params={params} user={user} />
+        : <LoginPage onNavigate={navigate} onLogin={login} />
+      )}
+      {page === 'dashboard' && (user
+        ? <DashboardPage onNavigate={navigate} user={user} />
+        : <LoginPage onNavigate={navigate} onLogin={login} />
+      )}
+      {page === 'admin'     && (user && user.isAdmin
+        ? <AdminPage onNavigate={navigate} user={user} />
+        : <LoginPage onNavigate={navigate} onLogin={login} />
+      )}
+      {page === 'profile'   && (user
+        ? <ProfilePage user={user} onUserUpdate={updateUser} onNavigate={navigate} />
+        : <LoginPage onNavigate={navigate} onLogin={login} />
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+
+<script>
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === '__activate_edit_mode')   document.getElementById('tweaks-panel').classList.add('open');
+  if (e.data && e.data.type === '__deactivate_edit_mode') document.getElementById('tweaks-panel').classList.remove('open');
+});
+window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+
+document.getElementById('tweaks-close').addEventListener('click', function() {
+  document.getElementById('tweaks-panel').classList.remove('open');
+  window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+});
+
+document.getElementById('tweak-dark-nav').addEventListener('change', function() {
+  var nav = document.querySelector('nav');
+  if (nav) nav.style.background = this.checked ? '#1e0a3c' : '#fff';
+  window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { darkNav: this.checked } }, '*');
+});
+
+document.querySelectorAll('.color-swatch').forEach(function(sw) {
+  sw.addEventListener('click', function() {
+    var color = this.dataset.color;
+    document.querySelectorAll('.color-swatch').forEach(function(s) { s.style.boxShadow = 'none'; });
+    this.style.boxShadow = '0 0 0 2px ' + color;
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { accentColor: color } }, '*');
+  });
+});
+</script>
+</body>
+</html>
