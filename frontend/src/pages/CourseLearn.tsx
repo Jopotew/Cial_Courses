@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { coursesApi } from '@/api/courses'
 import { videosApi } from '@/api/videos'
 import { modulesApi, type CourseModule, type ModuleVideo } from '@/api/modules'
@@ -13,6 +13,7 @@ export function CourseLearn() {
   const { isAuthenticated, user } = useAuthStore()
   const isAdmin = user?.isAdmin ?? false
   const videoRef = useRef<HTMLVideoElement>(null)
+  const queryClient = useQueryClient()
 
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null)
   const [streamUrl, setStreamUrl] = useState<string | null>(null)
@@ -47,6 +48,19 @@ export function CourseLearn() {
     queryFn: () => progressApi.getCourse(id!),
     enabled: !!id && isAuthenticated,
   })
+
+  const { data: serverCompletedIds } = useQuery({
+    queryKey: ['progress-completed', id],
+    queryFn: () => progressApi.getCompletedVideoIds(id!),
+    enabled: !!id && isAuthenticated,
+  })
+
+  // Hydrate local completedIds from server on first load
+  useEffect(() => {
+    if (serverCompletedIds && serverCompletedIds.length > 0) {
+      setCompletedIds((prev) => new Set([...prev, ...serverCompletedIds]))
+    }
+  }, [serverCompletedIds])
 
   // Flat list for sequential nav (only published for students, all for admin)
   const allVideos: ModuleVideo[] = modules.flatMap((m) => m.videos)
@@ -94,8 +108,20 @@ export function CourseLearn() {
     }
   }
 
-  function handleVideoEnd() {
-    if (activeVideoId) setCompletedIds((prev) => new Set([...prev, activeVideoId!]))
+  async function handleVideoEnd() {
+    const finishedId = activeVideoId
+    if (finishedId) {
+      // Optimistic local update
+      setCompletedIds((prev) => new Set([...prev, finishedId]))
+      // Persist to backend and refresh progress bars
+      try {
+        await progressApi.markVideoComplete(finishedId)
+        queryClient.invalidateQueries({ queryKey: ['progress', id] })
+        queryClient.invalidateQueries({ queryKey: ['progress-completed', id] })
+      } catch {
+        // Local state already updated; backend failure is non-critical
+      }
+    }
     if (canNext) loadVideo(allVideos[activeIndex + 1].id)
   }
 

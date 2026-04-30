@@ -9,4 +9,16 @@ export const progressApi = {
     const res = await client.get(`/progress/courses/${courseId}`)
     return Number(res.data.progress_percentage ?? res.data.percentage ?? 0)
   },
+
+  getCompletedVideoIds: async (courseId: string): Promise<string[]> => {
+    if (MOCK) return []
+    const res = await client.get(`/progress/courses/${courseId}`)
+    const videos = (res.data.videos_progress ?? []) as Array<{ video_id: string; is_completed: boolean }>
+    return videos.filter((v) => v.is_completed).map((v) => v.video_id)
+  },
+
+  markVideoComplete: async (videoId: string): Promise<void> => {
+    if (MOCK) return
+    await client.post(`/progress/videos/${videoId}/complete`, { is_completed: true })
+  },
 }

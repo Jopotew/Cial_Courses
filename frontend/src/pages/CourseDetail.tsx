@@ -141,9 +141,6 @@ export function CourseDetail() {
             >
               {course.title}
             </h1>
-            {course.subtitle && (
-              <p className="text-base text-white/75 leading-relaxed mb-5">{course.subtitle}</p>
-            )}
 
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
@@ -193,7 +190,7 @@ export function CourseDetail() {
         <div>
           {/* About */}
           <ContentSection title="Sobre este curso">
-            {!course.subtitle && course.description && (
+            {course.description && (
               <p className="text-[15px] text-gray-700 leading-[1.7] mb-5">{course.description}</p>
             )}
             <div className="flex gap-5 flex-wrap">
