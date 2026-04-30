@@ -107,24 +107,6 @@ def get_course(course_id: UUID):
 # Endpoints de admin
 # ──────────────────────────────────────────────────────────────────────────────
 
-@router.get("/admin/{course_id}", response_model=CourseDetailResponse)
-def get_course_admin(
-    course_id: UUID,
-    current_user: dict = Depends(require_admin),
-):
-    """
-    Obtiene el detalle de un curso (incluidos los no publicados).
-    Requiere: JWT válido + role=1 (admin).
-    """
-    course = course_service.get_course_by_id(course_id, include_unpublished=True)
-    if course is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Curso no encontrado.",
-        )
-    return CourseDetailResponse.model_validate(course)
-
-
 @router.get("/admin/all", response_model=dict)
 def list_all_courses_admin(
     category_id: UUID | None = Query(default=None),
@@ -154,6 +136,24 @@ def list_all_courses_admin(
         "page_size": page_size,
         "pages": pages,
     }
+
+
+@router.get("/admin/{course_id}", response_model=CourseDetailResponse)
+def get_course_admin(
+    course_id: UUID,
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Obtiene el detalle de un curso (incluidos los no publicados).
+    Requiere: JWT válido + role=1 (admin).
+    """
+    course = course_service.get_course_by_id(course_id, include_unpublished=True)
+    if course is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Curso no encontrado.",
+        )
+    return CourseDetailResponse.model_validate(course)
 
 
 @router.post("", response_model=CourseResponse, status_code=status.HTTP_201_CREATED)

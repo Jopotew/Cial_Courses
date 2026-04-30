@@ -22,6 +22,8 @@ export function CourseEditor() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
+  const isNew = courseId === 'new'
+
   const [activePanel, setActivePanel] = useState<ActivePanel>({ type: 'info' })
   const [savingInfo, setSavingInfo] = useState(false)
   const [unsaved, setUnsaved] = useState(false)
@@ -29,7 +31,7 @@ export function CourseEditor() {
   const { data: course } = useQuery<Record<string, unknown>>({
     queryKey: ['course-admin', courseId],
     queryFn: () => coursesApi.getAdmin(courseId!),
-    enabled: !!courseId,
+    enabled: !!courseId && !isNew,
   })
 
   const { data: modules = [], refetch: refetchModules } = useQuery({
@@ -50,6 +52,8 @@ export function CourseEditor() {
   })
 
   // ── Info form state ─────────────────────────────────────────────────────────
+
+  const [createError, setCreateError] = useState('')
 
   const [infoForm, setInfoForm] = useState({
     title: '',
@@ -80,6 +84,40 @@ export function CourseEditor() {
       })
     }
   }, [course])
+
+  // When creating new, auto-select first category
+  useEffect(() => {
+    if (isNew && categories.length > 0) {
+      setInfoForm((f) => ({ ...f, category_id: f.category_id || categories[0].id }))
+    }
+  }, [isNew, categories])
+
+  async function handleCreate() {
+    if (!infoForm.title.trim()) {
+      setCreateError('El título es obligatorio.')
+      return
+    }
+    setCreateError('')
+    setSavingInfo(true)
+    try {
+      const res = await api.post('/courses', {
+        title: infoForm.title,
+        subtitle: infoForm.subtitle || '',
+        description: infoForm.description || '',
+        category_id: infoForm.category_id || categories[0]?.id,
+        instructor_name: infoForm.instructor_name || '',
+        price: Number(infoForm.price) || 0,
+        original_price: infoForm.original_price ? Number(infoForm.original_price) : null,
+        level: infoForm.level || 'basico',
+        featured: infoForm.featured,
+        is_published: false,
+      })
+      qc.invalidateQueries({ queryKey: ['courses-admin'] })
+      navigate(`/admin/editor/${res.data.id}`, { replace: true })
+    } finally {
+      setSavingInfo(false)
+    }
+  }
 
   async function handleSaveInfo() {
     if (!courseId) return
@@ -148,7 +186,7 @@ export function CourseEditor() {
 
   const activeLessonModuleId = activePanel.type === 'lesson' ? activePanel.moduleId : null
 
-  const courseTitle = (course?.title as string) ?? '…'
+  const courseTitle = isNew ? 'Nuevo curso' : ((course?.title as string) ?? '…')
 
   // ─── Render ────────────────────────────────────────────────────────────────
   // Uses calc(100vh - 64px) to fill the AdminLayout content area exactly
@@ -190,42 +228,59 @@ export function CourseEditor() {
           {courseTitle}
         </span>
 
-        {unsaved && (
+        {unsaved && !isNew && (
           <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600, flexShrink: 0 }}>
             Cambios sin guardar
           </span>
         )}
 
-        <button
-          onClick={handleSaveInfo}
-          disabled={savingInfo || activePanel.type !== 'info'}
-          style={{
-            padding: '8px 20px',
-            borderRadius: 10, fontSize: 13, fontWeight: 700,
-            border: 'none', cursor: savingInfo || activePanel.type !== 'info' ? 'not-allowed' : 'pointer',
-            background: '#7c3aed', color: '#fff', flexShrink: 0,
-            opacity: activePanel.type !== 'info' ? 0.4 : 1,
-            fontFamily: 'inherit',
-          }}
-        >
-          {savingInfo ? 'Guardando…' : 'Guardar cambios'}
-        </button>
+        {isNew ? (
+          <button
+            onClick={handleCreate}
+            disabled={savingInfo}
+            style={{
+              padding: '8px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+              border: 'none', cursor: savingInfo ? 'not-allowed' : 'pointer',
+              background: '#7c3aed', color: '#fff', flexShrink: 0,
+              opacity: savingInfo ? 0.6 : 1, fontFamily: 'inherit',
+            }}
+          >
+            {savingInfo ? 'Creando…' : 'Crear curso'}
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={handleSaveInfo}
+              disabled={savingInfo || activePanel.type !== 'info'}
+              style={{
+                padding: '8px 20px',
+                borderRadius: 10, fontSize: 13, fontWeight: 700,
+                border: 'none', cursor: savingInfo || activePanel.type !== 'info' ? 'not-allowed' : 'pointer',
+                background: '#7c3aed', color: '#fff', flexShrink: 0,
+                opacity: activePanel.type !== 'info' ? 0.4 : 1,
+                fontFamily: 'inherit',
+              }}
+            >
+              {savingInfo ? 'Guardando…' : 'Guardar cambios'}
+            </button>
 
-        <Link
-          to={`/courses/${courseId}`}
-          target="_blank"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            fontSize: 13, fontWeight: 600, color: '#7c3aed',
-            textDecoration: 'none', flexShrink: 0,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M7 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9" strokeLinecap="round" />
-            <path d="M10 2h4v4M14 2l-7 7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Vista previa
-        </Link>
+            <Link
+              to={`/courses/${courseId}`}
+              target="_blank"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 13, fontWeight: 600, color: '#7c3aed',
+                textDecoration: 'none', flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M7 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9" strokeLinecap="round" />
+                <path d="M10 2h4v4M14 2l-7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Vista previa
+            </Link>
+          </>
+        )}
       </header>
 
       {/* ── Body: tree + panel ── */}
@@ -255,79 +310,91 @@ export function CourseEditor() {
             <span>Información del curso</span>
           </TreeButton>
 
-          {/* Modules heading */}
-          <div
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '16px 16px 6px',
-            }}
-          >
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Módulos
-            </span>
-            <button
-              onClick={addModule}
-              style={{
-                width: 22, height: 22, borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(255,255,255,.08)', border: 'none', cursor: 'pointer',
-                color: 'rgba(255,255,255,.6)',
-              }}
-              title="Agregar módulo"
-            >
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M5.5 1v9M1 5.5h9" />
-              </svg>
-            </button>
-          </div>
+          {!isNew && (
+            <>
+              {/* Modules heading */}
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '16px 16px 6px',
+                }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Módulos
+                </span>
+                <button
+                  onClick={addModule}
+                  style={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(255,255,255,.08)', border: 'none', cursor: 'pointer',
+                    color: 'rgba(255,255,255,.6)',
+                  }}
+                  title="Agregar módulo"
+                >
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M5.5 1v9M1 5.5h9" />
+                  </svg>
+                </button>
+              </div>
 
-          {modules.length === 0 && (
-            <p style={{ padding: '6px 16px', fontSize: 12, color: 'rgba(255,255,255,.25)', fontStyle: 'italic' }}>
-              Sin módulos
-            </p>
+              {modules.length === 0 && (
+                <p style={{ padding: '6px 16px', fontSize: 12, color: 'rgba(255,255,255,.25)', fontStyle: 'italic' }}>
+                  Sin módulos
+                </p>
+              )}
+
+              {modules.map((mod, mi) => (
+                <ModuleTreeItem
+                  key={mod.id}
+                  mod={mod}
+                  index={mi}
+                  activePanel={activePanel}
+                  onSelectModule={() => setActivePanel({ type: 'module', id: mod.id })}
+                  onSelectLesson={(vid) => setActivePanel({ type: 'lesson', id: vid.id, moduleId: mod.id })}
+                  onAddLesson={() => addLesson(mod.id)}
+                  onDeleteModule={() => deleteModule(mod.id)}
+                  onDeleteLesson={(vid) => deleteLesson(vid.id)}
+                />
+              ))}
+
+              {/* Files item */}
+              <TreeButton
+                active={activePanel.type === 'files'}
+                onClick={() => setActivePanel({ type: 'files' })}
+                style={{ marginTop: 8 }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 1H9L12 4V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" />
+                  <path d="M9 1v4h3" />
+                </svg>
+                <span>
+                  Archivos del curso{courseFiles.length > 0 ? ` (${courseFiles.length})` : ''}
+                </span>
+              </TreeButton>
+            </>
           )}
-
-          {modules.map((mod, mi) => (
-            <ModuleTreeItem
-              key={mod.id}
-              mod={mod}
-              index={mi}
-              activePanel={activePanel}
-              onSelectModule={() => setActivePanel({ type: 'module', id: mod.id })}
-              onSelectLesson={(vid) => setActivePanel({ type: 'lesson', id: vid.id, moduleId: mod.id })}
-              onAddLesson={() => addLesson(mod.id)}
-              onDeleteModule={() => deleteModule(mod.id)}
-              onDeleteLesson={(vid) => deleteLesson(vid.id)}
-            />
-          ))}
-
-          {/* Files item */}
-          <TreeButton
-            active={activePanel.type === 'files'}
-            onClick={() => setActivePanel({ type: 'files' })}
-            style={{ marginTop: 8 }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 1H9L12 4V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" />
-              <path d="M9 1v4h3" />
-            </svg>
-            <span>
-              Archivos del curso{courseFiles.length > 0 ? ` (${courseFiles.length})` : ''}
-            </span>
-          </TreeButton>
         </nav>
 
         {/* ── Right: editor panel ── */}
         <main style={{ flex: 1, overflowY: 'auto', background: '#fff', padding: '32px 40px' }}>
-          {activePanel.type === 'info' && course && (
-            <InfoPanel
-              form={infoForm}
-              categories={categories}
-              onChange={(updates) => {
-                setInfoForm((f) => ({ ...f, ...updates }))
-                setUnsaved(true)
-              }}
-            />
+          {activePanel.type === 'info' && (isNew || course) && (
+            <>
+              {createError && (
+                <div style={{ marginBottom: 20, padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1.5px solid #fecaca', color: '#dc2626', fontSize: 13, fontWeight: 600 }}>
+                  {createError}
+                </div>
+              )}
+              <InfoPanel
+                form={infoForm}
+                categories={categories}
+                onChange={(updates) => {
+                  setInfoForm((f) => ({ ...f, ...updates }))
+                  if (!isNew) setUnsaved(true)
+                  if (createError) setCreateError('')
+                }}
+              />
+            </>
           )}
           {activePanel.type === 'module' && activeModule && (
             <ModulePanel

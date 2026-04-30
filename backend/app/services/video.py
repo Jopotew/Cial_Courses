@@ -247,6 +247,7 @@ def update_video(
         updates["storage_file_id"] = uploaded_video.file_id
         updates["file_size_bytes"] = uploaded_video.file_size
         updates["duration_seconds"] = duration
+        updates["is_published"] = True
     
     # Si se reemplaza el thumbnail
     if thumbnail_file and thumbnail_filename:

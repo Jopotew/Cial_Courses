@@ -168,6 +168,18 @@ export const coursesApi = {
     await client.delete(`/courses/${id}`)
   },
 
+  /** Admin: list ALL courses including unpublished */
+  listAdmin: async (): Promise<Course[]> => {
+    const res = await client.get('/courses/admin/all', { params: { page_size: 100 } })
+    return (res.data.items as Record<string, unknown>[]).map(mapCourse)
+  },
+
+  /** Admin: publish or unpublish a course */
+  publish: async (id: string, isPublished: boolean): Promise<Course> => {
+    const res = await client.patch(`/courses/${id}/publish`, { is_published: isPublished })
+    return mapCourse(res.data)
+  },
+
   /** Admin: get course by ID including unpublished */
   getAdmin: async (id: string): Promise<Record<string, unknown>> => {
     const res = await client.get(`/courses/admin/${id}`)

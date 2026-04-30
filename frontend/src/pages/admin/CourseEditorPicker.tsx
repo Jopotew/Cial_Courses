@@ -6,8 +6,8 @@ import { formatPrice } from '@/lib/utils'
 export function CourseEditorPicker() {
   const navigate = useNavigate()
   const { data: courses = [], isLoading } = useQuery({
-    queryKey: ['courses'],
-    queryFn: coursesApi.list,
+    queryKey: ['courses-admin'],
+    queryFn: coursesApi.listAdmin,
   })
 
   return (
@@ -54,7 +54,7 @@ function CourseCard({
   course,
   onEdit,
 }: {
-  course: { id: string; title: string; instructor: string; category: string; price: number; cardColor: string; instructorInitials: string; is_published?: boolean }
+  course: { id: string; title: string; instructor: string; category: string; price: number; cardColor: string; instructorInitials: string; isPublished: boolean }
   onEdit: () => void
 }) {
   return (
@@ -91,9 +91,20 @@ function CourseCard({
           fontWeight: 900,
           color: '#fff',
           letterSpacing: '-1px',
+          position: 'relative',
         }}
       >
         {course.instructorInitials}
+        <span
+          style={{
+            position: 'absolute', top: 8, right: 8,
+            fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 8px',
+            background: course.isPublished ? '#dcfce7' : 'rgba(0,0,0,.3)',
+            color: course.isPublished ? '#16a34a' : '#fff',
+          }}
+        >
+          {course.isPublished ? 'Publicado' : 'Borrador'}
+        </span>
       </div>
 
       <div style={{ padding: '16px 18px 18px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -110,7 +121,7 @@ function CourseCard({
               background: '#f3e8ff', borderRadius: 6, padding: '2px 8px',
             }}
           >
-            {course.category}
+            {course.category || 'Sin categoría'}
           </span>
           <span style={{ fontSize: 12, fontWeight: 700, color: '#1a1a2e' }}>
             {formatPrice(course.price)}
