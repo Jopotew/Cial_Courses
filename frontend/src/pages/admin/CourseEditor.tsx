@@ -26,7 +26,6 @@ export function CourseEditor() {
   const [savingInfo, setSavingInfo] = useState(false)
   const [unsaved, setUnsaved] = useState(false)
 
-  // Raw API data (includes unpublished fields)
   const { data: course } = useQuery<Record<string, unknown>>({
     queryKey: ['course-admin', courseId],
     queryFn: () => coursesApi.getAdmin(courseId!),
@@ -50,7 +49,7 @@ export function CourseEditor() {
     queryFn: categoriesApi.list,
   })
 
-  // ── Info form state ──────────────────────────────────────────────────────
+  // ── Info form state ─────────────────────────────────────────────────────────
 
   const [infoForm, setInfoForm] = useState({
     title: '',
@@ -106,7 +105,7 @@ export function CourseEditor() {
     }
   }
 
-  // ── Modules ops ─────────────────────────────────────────────────────────
+  // ── Module ops ──────────────────────────────────────────────────────────────
 
   async function addModule() {
     if (!courseId) return
@@ -127,9 +126,8 @@ export function CourseEditor() {
       title: 'Nueva clase',
       module_id: moduleId,
     })
-    const newVideo = res.data
     await refetchModules()
-    setActivePanel({ type: 'lesson', id: newVideo.id, moduleId })
+    setActivePanel({ type: 'lesson', id: res.data.id, moduleId })
   }
 
   async function deleteLesson(lessonId: string) {
@@ -138,7 +136,7 @@ export function CourseEditor() {
     setActivePanel({ type: 'info' })
   }
 
-  // ── Derive active data ───────────────────────────────────────────────────
+  // ── Derived data ────────────────────────────────────────────────────────────
 
   const activeModule =
     activePanel.type === 'module' ? modules.find((m) => m.id === activePanel.id) ?? null : null
@@ -150,18 +148,35 @@ export function CourseEditor() {
 
   const activeLessonModuleId = activePanel.type === 'lesson' ? activePanel.moduleId : null
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  const courseTitle = (course?.title as string) ?? '…'
 
+  // ─── Render ────────────────────────────────────────────────────────────────
+  // Uses calc(100vh - 64px) to fill the AdminLayout content area exactly
   return (
-    <div className="min-h-[calc(100vh-64px)] flex flex-col bg-white" style={{ fontFamily: 'inherit' }}>
+    <div
+      style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', background: '#fff' }}
+    >
       {/* ── Top bar ── */}
       <header
-        className="flex items-center gap-4 px-6 h-14 flex-shrink-0 border-b z-10 bg-white"
-        style={{ borderColor: '#e5e7eb' }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          padding: '0 24px',
+          height: 56,
+          flexShrink: 0,
+          borderBottom: '1px solid #e5e7eb',
+          background: '#fff',
+        }}
       >
         <button
-          onClick={() => navigate('/admin/courses')}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-primary transition-colors bg-transparent border-none cursor-pointer p-0"
+          onClick={() => navigate('/admin/editor')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 13, fontWeight: 600, color: '#64748b',
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            fontFamily: 'inherit',
+          }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M10 12L6 8l4-4" />
@@ -169,14 +184,14 @@ export function CourseEditor() {
           Cursos
         </button>
 
-        <div className="w-px h-5 bg-slate-200 flex-shrink-0" />
+        <div style={{ width: 1, height: 20, background: '#e2e8f0', flexShrink: 0 }} />
 
-        <span className="text-[14px] font-bold text-ink flex-1 truncate">
-          {(course?.title as string) ?? '…'}
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {courseTitle}
         </span>
 
         {unsaved && (
-          <span className="text-[12px] text-amber-500 font-semibold hidden sm:block flex-shrink-0">
+          <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600, flexShrink: 0 }}>
             Cambios sin guardar
           </span>
         )}
@@ -184,8 +199,14 @@ export function CourseEditor() {
         <button
           onClick={handleSaveInfo}
           disabled={savingInfo || activePanel.type !== 'info'}
-          className="px-5 py-2 rounded-[10px] text-[13px] font-bold border-none cursor-pointer transition-colors flex-shrink-0 disabled:opacity-50"
-          style={{ background: '#7c3aed', color: '#fff' }}
+          style={{
+            padding: '8px 20px',
+            borderRadius: 10, fontSize: 13, fontWeight: 700,
+            border: 'none', cursor: savingInfo || activePanel.type !== 'info' ? 'not-allowed' : 'pointer',
+            background: '#7c3aed', color: '#fff', flexShrink: 0,
+            opacity: activePanel.type !== 'info' ? 0.4 : 1,
+            fontFamily: 'inherit',
+          }}
         >
           {savingInfo ? 'Guardando…' : 'Guardar cambios'}
         </button>
@@ -193,7 +214,11 @@ export function CourseEditor() {
         <Link
           to={`/courses/${courseId}`}
           target="_blank"
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-primary no-underline hover:opacity-75 transition-opacity flex-shrink-0"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 13, fontWeight: 600, color: '#7c3aed',
+            textDecoration: 'none', flexShrink: 0,
+          }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M7 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9" strokeLinecap="round" />
@@ -203,44 +228,64 @@ export function CourseEditor() {
         </Link>
       </header>
 
-      {/* ── Body ── */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* ── Left panel (dark sidebar) ── */}
+      {/* ── Body: tree + panel ── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* ── Left: course tree ── */}
         <nav
-          className="w-[280px] flex-shrink-0 flex flex-col overflow-y-auto"
-          style={{ background: '#1e0a3c', borderRight: '1px solid rgba(255,255,255,.08)' }}
+          style={{
+            width: 260,
+            flexShrink: 0,
+            background: '#2d1558',
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            borderRight: '1px solid rgba(255,255,255,.07)',
+          }}
         >
-          {/* Course info item */}
-          <button
+          {/* Info item */}
+          <TreeButton
+            active={activePanel.type === 'info'}
             onClick={() => setActivePanel({ type: 'info' })}
-            className="flex items-center gap-3 px-4 py-3.5 text-left border-none cursor-pointer transition-all w-full"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="1.5" strokeLinecap="round">
+              <rect x="1" y="1" width="12" height="12" rx="1.5" />
+              <path d="M3.5 4.5h7M3.5 7h5M3.5 9.5h3" />
+            </svg>
+            <span>Información del curso</span>
+          </TreeButton>
+
+          {/* Modules heading */}
+          <div
             style={{
-              background: activePanel.type === 'info' ? 'rgba(124,58,237,.35)' : 'transparent',
-              borderLeft: activePanel.type === 'info' ? '3px solid #a78bfa' : '3px solid transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 16px 6px',
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="1.5" strokeLinecap="round">
-              <rect x="1" y="1" width="13" height="13" rx="2" />
-              <path d="M4 5h7M4 8h5M4 11h3" />
-            </svg>
-            <span className="text-[13px] font-semibold" style={{ color: activePanel.type === 'info' ? '#a78bfa' : 'rgba(255,255,255,.75)' }}>
-              Información del curso
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Módulos
             </span>
-          </button>
-
-          {/* Modules section */}
-          <div className="px-4 pt-4 pb-1 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Módulos</span>
             <button
               onClick={addModule}
-              className="w-6 h-6 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-all border-none bg-transparent cursor-pointer"
+              style={{
+                width: 22, height: 22, borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(255,255,255,.08)', border: 'none', cursor: 'pointer',
+                color: 'rgba(255,255,255,.6)',
+              }}
               title="Agregar módulo"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M6 1v10M1 6h10" />
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M5.5 1v9M1 5.5h9" />
               </svg>
             </button>
           </div>
+
+          {modules.length === 0 && (
+            <p style={{ padding: '6px 16px', fontSize: 12, color: 'rgba(255,255,255,.25)', fontStyle: 'italic' }}>
+              Sin módulos
+            </p>
+          )}
 
           {modules.map((mod, mi) => (
             <ModuleTreeItem
@@ -256,31 +301,24 @@ export function CourseEditor() {
             />
           ))}
 
-          {modules.length === 0 && (
-            <p className="px-4 py-2 text-[12px] text-white/30 italic">Sin módulos aún</p>
-          )}
-
-          {/* Course files item */}
-          <button
+          {/* Files item */}
+          <TreeButton
+            active={activePanel.type === 'files'}
             onClick={() => setActivePanel({ type: 'files' })}
-            className="flex items-center gap-3 px-4 py-3.5 mt-2 text-left border-none cursor-pointer transition-all w-full"
-            style={{
-              background: activePanel.type === 'files' ? 'rgba(124,58,237,.35)' : 'transparent',
-              borderLeft: activePanel.type === 'files' ? '3px solid #a78bfa' : '3px solid transparent',
-            }}
+            style={{ marginTop: 8 }}
           >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 1H10L13 4V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" />
-              <path d="M10 1v4h3" />
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 1H9L12 4V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" />
+              <path d="M9 1v4h3" />
             </svg>
-            <span className="text-[13px] font-semibold" style={{ color: activePanel.type === 'files' ? '#a78bfa' : 'rgba(255,255,255,.75)' }}>
-              Archivos del curso {courseFiles.length > 0 ? `(${courseFiles.length})` : ''}
+            <span>
+              Archivos del curso{courseFiles.length > 0 ? ` (${courseFiles.length})` : ''}
             </span>
-          </button>
+          </TreeButton>
         </nav>
 
-        {/* ── Right panel ── */}
-        <main className="flex-1 overflow-y-auto bg-white p-8">
+        {/* ── Right: editor panel ── */}
+        <main style={{ flex: 1, overflowY: 'auto', background: '#fff', padding: '32px 40px' }}>
           {activePanel.type === 'info' && course && (
             <InfoPanel
               form={infoForm}
@@ -300,7 +338,9 @@ export function CourseEditor() {
               }}
               onAddLesson={() => addLesson(activeModule.id)}
               onDeleteModule={() => deleteModule(activeModule.id)}
-              onSelectLesson={(vid) => setActivePanel({ type: 'lesson', id: vid.id, moduleId: activeModule.id })}
+              onSelectLesson={(vid) =>
+                setActivePanel({ type: 'lesson', id: vid.id, moduleId: activeModule.id })
+              }
               onDeleteLesson={(vid) => deleteLesson(vid.id)}
             />
           )}
@@ -326,6 +366,41 @@ export function CourseEditor() {
   )
 }
 
+// ─── Tree button ──────────────────────────────────────────────────────────────
+
+function TreeButton({
+  active,
+  onClick,
+  children,
+  style,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+  style?: React.CSSProperties
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '11px 16px', textAlign: 'left',
+        background: active ? 'rgba(124,58,237,.4)' : 'transparent',
+        borderLeft: active ? '3px solid #a78bfa' : '3px solid transparent',
+        border: 'none', borderRight: 'none', borderTop: 'none', borderBottom: 'none',
+        borderLeftStyle: 'solid', borderLeftWidth: 3, borderLeftColor: active ? '#a78bfa' : 'transparent',
+        cursor: 'pointer', width: '100%', fontFamily: 'inherit',
+        fontSize: 13, fontWeight: 600,
+        color: active ? '#a78bfa' : 'rgba(255,255,255,.7)',
+        transition: 'all .15s',
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
 // ─── Module tree item ─────────────────────────────────────────────────────────
 
 function ModuleTreeItem({
@@ -348,102 +423,168 @@ function ModuleTreeItem({
   onDeleteLesson: (v: ModuleVideo) => void
 }) {
   const [expanded, setExpanded] = useState(true)
-  const isModActive = activePanel.type === 'module' && activePanel.id === mod.id
+  const [hovered, setHovered] = useState(false)
+  const isActive = activePanel.type === 'module' && activePanel.id === mod.id
 
   return (
     <div>
       <div
-        className="flex items-center gap-2 px-4 py-2.5 group"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
-          background: isModActive ? 'rgba(124,58,237,.25)' : 'transparent',
-          borderLeft: isModActive ? '3px solid #a78bfa' : '3px solid transparent',
+          display: 'flex', alignItems: 'center',
+          padding: '9px 12px 9px 16px',
+          background: isActive ? 'rgba(124,58,237,.3)' : 'transparent',
+          borderLeft: `3px solid ${isActive ? '#a78bfa' : 'transparent'}`,
         }}
       >
+        {/* expand toggle */}
         <button
           onClick={() => setExpanded((e) => !e)}
-          className="border-none bg-transparent cursor-pointer p-0 text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '0 6px 0 0',
+            color: 'rgba(255,255,255,.35)', flexShrink: 0,
+          }}
         >
           <svg
-            width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8"
+            width="10" height="10" viewBox="0 0 10 10" fill="none"
+            stroke="currentColor" strokeWidth="1.8"
             style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}
           >
             <path d="M3 2l4 3-4 3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
 
+        {/* module label */}
         <button
           onClick={onSelectModule}
-          className="flex-1 text-left border-none bg-transparent cursor-pointer p-0 min-w-0"
+          style={{
+            flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: 'inherit', padding: 0, minWidth: 0, overflow: 'hidden',
+          }}
         >
-          <span className="text-[11px] font-bold text-white/40 mr-1.5">M{index + 1}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.35)', marginRight: 6 }}>
+            M{index + 1}
+          </span>
           <span
-            className="text-[13px] font-semibold truncate"
-            style={{ color: isModActive ? '#a78bfa' : 'rgba(255,255,255,.75)' }}
+            style={{
+              fontSize: 13, fontWeight: 600,
+              color: isActive ? '#a78bfa' : 'rgba(255,255,255,.72)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}
           >
             {mod.title}
           </span>
         </button>
 
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddLesson() }}
-            className="w-5 h-5 flex items-center justify-center text-white/50 hover:text-white border-none bg-transparent cursor-pointer rounded"
-            title="Agregar clase"
-          >
+        {/* action buttons */}
+        <div style={{ display: 'flex', gap: 4, opacity: hovered ? 1 : 0, transition: 'opacity .15s', flexShrink: 0 }}>
+          <ActionBtn title="Agregar clase" onClick={(e) => { e.stopPropagation(); onAddLesson() }}>
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M5 1v8M1 5h8" />
             </svg>
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDeleteModule() }}
-            className="w-5 h-5 flex items-center justify-center text-red-400 hover:text-red-300 border-none bg-transparent cursor-pointer rounded"
-            title="Eliminar módulo"
-          >
+          </ActionBtn>
+          <ActionBtn title="Eliminar módulo" color="#f87171" onClick={(e) => { e.stopPropagation(); onDeleteModule() }}>
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M1 1l8 8M9 1L1 9" />
             </svg>
-          </button>
+          </ActionBtn>
         </div>
       </div>
 
       {expanded &&
         mod.videos.map((vid) => {
-          const isActive = activePanel.type === 'lesson' && activePanel.id === vid.id
+          const isLessonActive = activePanel.type === 'lesson' && activePanel.id === vid.id
           return (
-            <div
+            <LessonTreeItem
               key={vid.id}
-              className="flex items-center gap-2 pl-10 pr-4 py-2 group"
-              style={{
-                background: isActive ? 'rgba(124,58,237,.2)' : 'transparent',
-                borderLeft: isActive ? '3px solid #a78bfa' : '3px solid transparent',
-              }}
-            >
-              <button
-                onClick={() => onSelectLesson(vid)}
-                className="flex-1 text-left border-none bg-transparent cursor-pointer p-0 min-w-0"
-              >
-                <span
-                  className="text-[12px] truncate block"
-                  style={{ color: isActive ? '#a78bfa' : 'rgba(255,255,255,.55)' }}
-                >
-                  {vid.title}
-                </span>
-                {!vid.is_published && (
-                  <span className="text-[10px] text-white/25">Sin video</span>
-                )}
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDeleteLesson(vid) }}
-                className="w-5 h-5 flex items-center justify-center text-red-400/50 hover:text-red-400 opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer rounded flex-shrink-0 transition-all"
-              >
-                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M1 1l7 7M8 1L1 8" />
-                </svg>
-              </button>
-            </div>
+              vid={vid}
+              isActive={isLessonActive}
+              onSelect={() => onSelectLesson(vid)}
+              onDelete={() => onDeleteLesson(vid)}
+            />
           )
         })}
     </div>
+  )
+}
+
+function LessonTreeItem({
+  vid,
+  isActive,
+  onSelect,
+  onDelete,
+}: {
+  vid: ModuleVideo
+  isActive: boolean
+  onSelect: () => void
+  onDelete: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', alignItems: 'center',
+        paddingLeft: 40, paddingRight: 12, paddingTop: 7, paddingBottom: 7,
+        background: isActive ? 'rgba(124,58,237,.2)' : 'transparent',
+        borderLeft: `3px solid ${isActive ? '#a78bfa' : 'transparent'}`,
+      }}
+    >
+      <button
+        onClick={onSelect}
+        style={{
+          flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', padding: 0, minWidth: 0,
+        }}
+      >
+        <div style={{ fontSize: 12, fontWeight: 500, color: isActive ? '#a78bfa' : 'rgba(255,255,255,.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {vid.title}
+        </div>
+        {!vid.is_published && (
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)' }}>Sin video</div>
+        )}
+      </button>
+      <button
+        onClick={onDelete}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: 2,
+          color: '#f87171', opacity: hovered ? 0.8 : 0, transition: 'opacity .15s', flexShrink: 0,
+        }}
+      >
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M1 1l7 7M8 1L1 8" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+function ActionBtn({
+  title,
+  color = 'rgba(255,255,255,.5)',
+  onClick,
+  children,
+}: {
+  title: string
+  color?: string
+  onClick: React.MouseEventHandler
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      style={{
+        width: 20, height: 20,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'none', border: 'none', cursor: 'pointer',
+        color, borderRadius: 4, fontFamily: 'inherit',
+      }}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -467,32 +608,32 @@ function InfoPanel({
   }
 
   return (
-    <div className="max-w-[720px]">
-      <h2 className="text-[22px] font-black text-ink mb-7 flex items-center gap-3">
-        <span className="text-2xl">📋</span> Información del curso
+    <div style={{ maxWidth: 700 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1a1a2e', marginBottom: 28, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span>📋</span> Información del curso
       </h2>
 
-      <div className="flex flex-col gap-5">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <Field label="Título del curso">
-          <input className={INPUT_CLS} {...field('title')} placeholder="Endodoncia Clínica Avanzada" />
+          <input className={INPUT} {...field('title')} placeholder="Endodoncia Clínica Avanzada" />
         </Field>
 
         <Field label="Subtítulo">
-          <input className={INPUT_CLS} {...field('subtitle')} placeholder="Una descripción corta del curso" />
+          <input className={INPUT} {...field('subtitle')} placeholder="Una descripción corta del curso" />
         </Field>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <Field label="Instructor">
-            <input className={INPUT_CLS} {...field('instructor_name')} placeholder="Dr. Martín Rodríguez" />
+            <input className={INPUT} {...field('instructor_name')} placeholder="Dr. Martín Rodríguez" />
           </Field>
           <Field label="Título del instructor">
-            <input className={INPUT_CLS} {...field('instructor_title')} placeholder="Especialista en Endodoncia · UBA" />
+            <input className={INPUT} {...field('instructor_title')} placeholder="Especialista en Endodoncia · UBA" />
           </Field>
         </div>
 
         <Field label="Descripción">
           <textarea
-            className={INPUT_CLS}
+            className={INPUT}
             rows={5}
             style={{ resize: 'vertical' }}
             {...field('description')}
@@ -500,9 +641,9 @@ function InfoPanel({
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <Field label="Categoría">
-            <select className={INPUT_CLS} {...field('category_id')}>
+            <select className={INPUT} {...field('category_id')}>
               <option value="">Seleccionar…</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -510,7 +651,7 @@ function InfoPanel({
             </select>
           </Field>
           <Field label="Nivel">
-            <select className={INPUT_CLS} {...field('level')}>
+            <select className={INPUT} {...field('level')}>
               <option value="basico">Básico</option>
               <option value="intermedio">Intermedio</option>
               <option value="avanzado">Avanzado</option>
@@ -518,23 +659,23 @@ function InfoPanel({
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <Field label="Precio ($)">
-            <input className={INPUT_CLS} type="number" {...field('price')} placeholder="0 = gratis" />
+            <input className={INPUT} type="number" {...field('price')} placeholder="0 = gratis" />
           </Field>
           <Field label="Precio original ($)">
-            <input className={INPUT_CLS} type="number" {...field('original_price')} placeholder="Sin descuento" />
+            <input className={INPUT} type="number" {...field('original_price')} placeholder="Sin descuento" />
           </Field>
         </div>
 
-        <label className="flex items-center gap-3 cursor-pointer select-none">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
           <input
             type="checkbox"
             checked={form.featured as boolean}
             onChange={(e) => onChange({ featured: e.target.checked })}
-            className="w-4 h-4 accent-primary"
+            style={{ width: 16, height: 16, accentColor: '#7c3aed' }}
           />
-          <span className="text-sm font-semibold text-gray-700">Destacado en la landing</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Destacado en la landing</span>
         </label>
       </div>
     </div>
@@ -564,27 +705,27 @@ function ModulePanel({
   useEffect(() => { setTitle(mod.title) }, [mod.title])
 
   async function save() {
+    if (title === mod.title) return
     setSaving(true)
     try { await onUpdateTitle(title) } finally { setSaving(false) }
   }
 
   return (
-    <div className="max-w-[720px]">
-      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
-        <h2 className="text-[22px] font-black text-ink flex items-center gap-3">
-          <span className="text-2xl">📁</span> {mod.title}
+    <div style={{ maxWidth: 700 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: 12, margin: 0 }}>
+          <span>📁</span> {mod.title}
         </h2>
-        <div className="flex gap-2">
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={onAddLesson}
-            className="px-4 py-2 rounded-[10px] text-[13px] font-semibold border-none cursor-pointer transition-colors"
-            style={{ background: '#7c3aed', color: '#fff' }}
+            style={{ padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', background: '#7c3aed', color: '#fff', fontFamily: 'inherit' }}
           >
             + Agregar clase
           </button>
           <button
             onClick={onDeleteModule}
-            className="px-4 py-2 rounded-[10px] text-[13px] font-semibold border-[1.5px] cursor-pointer transition-colors bg-white text-red-500 border-red-200 hover:bg-red-50"
+            style={{ padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: '1.5px solid #fecaca', cursor: 'pointer', background: '#fff', color: '#ef4444', fontFamily: 'inherit' }}
           >
             Eliminar módulo
           </button>
@@ -592,45 +733,49 @@ function ModulePanel({
       </div>
 
       <Field label="Título del módulo">
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: 12 }}>
           <input
-            className={INPUT_CLS + ' flex-1'}
+            className={INPUT}
+            style={{ flex: 1 }}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={save}
             placeholder="Título del módulo"
           />
-          {saving && <span className="self-center text-xs text-slate-400">Guardando…</span>}
+          {saving && <span style={{ alignSelf: 'center', fontSize: 12, color: '#94a3b8' }}>Guardando…</span>}
         </div>
       </Field>
 
-      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-7 mb-3">
+      <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginTop: 28, marginBottom: 12 }}>
         Clases ({mod.videos.length})
       </p>
 
-      <div className="flex flex-col gap-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {mod.videos.map((vid, i) => (
           <div
             key={vid.id}
-            className="flex items-center gap-3 p-4 rounded-[14px] border cursor-pointer hover:border-primary/40 transition-colors group"
-            style={{ borderColor: '#f0ebfd' }}
             onClick={() => onSelectLesson(vid)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: 16, borderRadius: 14, border: '1.5px solid #f0ebfd',
+              cursor: 'pointer', background: '#fff',
+              transition: 'border-color .15s',
+            }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.borderColor = '#c4b5fd')}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = '#f0ebfd')}
           >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0"
-              style={{ background: '#7c3aed', color: '#fff' }}
-            >
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#7c3aed', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
               {i + 1}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-ink truncate">{vid.title}</p>
-              <p className="text-xs text-slate-400">
-                {vid.is_published ? (vid.duration_seconds ? formatDuration(vid.duration_seconds) : 'Sin duración') : 'Sin video'}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vid.title}</p>
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
+                {vid.is_published && vid.duration_seconds ? formatDuration(vid.duration_seconds) : 'Sin video'}
               </p>
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); onDeleteLesson(vid) }}
-              className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 border-none bg-transparent cursor-pointer p-1 rounded transition-all"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: 4, borderRadius: 4 }}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M1 1l12 12M13 1L1 13" />
@@ -640,8 +785,8 @@ function ModulePanel({
         ))}
 
         {mod.videos.length === 0 && (
-          <p className="text-sm text-slate-400 text-center py-6">
-            Sin clases. Hacé clic en "+ Agregar clase" para empezar.
+          <p style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', padding: '24px 0' }}>
+            Sin clases. Hacé clic en "+ Agregar clase".
           </p>
         )}
       </div>
@@ -693,8 +838,8 @@ function LessonPanel({
       fd.append('video_file', file)
       await api.patch(`/videos/${lesson.id}`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => {
-          if (e.total) setUploadProgress(Math.round((e.loaded * 100) / e.total))
+        onUploadProgress: (ev) => {
+          if (ev.total) setUploadProgress(Math.round((ev.loaded * 100) / ev.total))
         },
       })
       await onUpdated()
@@ -706,48 +851,43 @@ function LessonPanel({
   }
 
   return (
-    <div className="max-w-[720px]">
-      <h2 className="text-[22px] font-black text-ink mb-7 flex items-center gap-3">
-        <span className="text-2xl">🎬</span> {lesson.title}
+    <div style={{ maxWidth: 700 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1a1a2e', marginBottom: 28, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span>🎬</span> {lesson.title}
       </h2>
 
       <Field label="Título de la clase">
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: 12 }}>
           <input
-            className={INPUT_CLS + ' flex-1'}
+            className={INPUT}
+            style={{ flex: 1 }}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={saveTitle}
           />
-          {saving && <span className="self-center text-xs text-slate-400">Guardando…</span>}
+          {saving && <span style={{ alignSelf: 'center', fontSize: 12, color: '#94a3b8' }}>Guardando…</span>}
         </div>
       </Field>
 
-      <div className="mt-6">
-        <p className="text-[13px] font-semibold text-gray-700 mb-3">Video</p>
+      <div style={{ marginTop: 24 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Video</p>
 
         {lesson.is_published ? (
-          <div
-            className="rounded-[14px] border-2 p-5 flex items-center gap-4"
-            style={{ borderColor: '#d1fae5', background: '#f0fdf4' }}
-          >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: '#d1fae5' }}
-            >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 20, borderRadius: 14, border: '2px solid #d1fae5', background: '#f0fdf4' }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M3 9l4 4 8-8" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-green-700">Video subido</p>
-              <p className="text-xs text-green-600">
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#065f46', margin: 0 }}>Video subido</p>
+              <p style={{ fontSize: 12, color: '#047857', margin: 0 }}>
                 {lesson.duration_seconds ? formatDuration(lesson.duration_seconds) : 'Duración desconocida'}
               </p>
             </div>
             <button
               onClick={() => videoInputRef.current?.click()}
-              className="px-3 py-1.5 rounded-[8px] text-[12px] font-semibold text-primary border border-primary/30 bg-white cursor-pointer hover:bg-primary/5 transition-colors"
+              style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#7c3aed', border: '1px solid #c4b5fd', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}
             >
               Reemplazar
             </button>
@@ -755,39 +895,32 @@ function LessonPanel({
         ) : (
           <div
             onClick={() => !uploading && videoInputRef.current?.click()}
-            className="rounded-[14px] border-2 border-dashed p-8 flex flex-col items-center justify-center cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-all"
-            style={{ borderColor: '#c4b5fd' }}
+            style={{
+              borderRadius: 14, border: '2px dashed #c4b5fd', padding: '40px 32px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              cursor: uploading ? 'default' : 'pointer', background: '#faf9ff',
+            }}
           >
             {uploading ? (
               <>
-                <div className="w-full bg-gray-100 rounded-full h-2 mb-3 max-w-[200px]">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
+                <div style={{ width: 200, background: '#ede9fe', borderRadius: 99, height: 8, marginBottom: 12 }}>
+                  <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#7c3aed', borderRadius: 99, transition: 'width .3s' }} />
                 </div>
-                <p className="text-sm font-semibold text-primary">{uploadProgress}% subido…</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#7c3aed', margin: 0 }}>{uploadProgress}% subido…</p>
               </>
             ) : (
               <>
-                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" className="mb-3">
-                  <circle cx="18" cy="18" r="17" stroke="#7c3aed" strokeWidth="1.5" opacity=".3" />
-                  <path d="M18 12v12M12 18h12" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" />
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ marginBottom: 12 }}>
+                  <circle cx="20" cy="20" r="19" stroke="#c4b5fd" strokeWidth="1.5" />
+                  <path d="M20 13v14M13 20h14" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" />
                 </svg>
-                <p className="text-sm font-semibold text-primary">Subir video</p>
-                <p className="text-xs text-slate-400 mt-1">MP4, MOV, AVI — hasta 2GB</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#7c3aed', margin: '0 0 4px' }}>Subir video</p>
+                <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>MP4, MOV, AVI — hasta 2GB</p>
               </>
             )}
           </div>
         )}
-
-        <input
-          ref={videoInputRef}
-          type="file"
-          accept="video/*"
-          className="hidden"
-          onChange={handleVideoUpload}
-        />
+        <input ref={videoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoUpload} />
       </div>
     </div>
   )
@@ -831,101 +964,84 @@ function FilesPanel({
     try {
       await courseFilesApi.delete(fileId)
       await onDeleted()
-    } finally {
-      setDeleting(null)
-    }
+    } finally { setDeleting(null) }
   }
 
   return (
-    <div className="max-w-[720px]">
-      <h2 className="text-[22px] font-black text-ink mb-2 flex items-center gap-3">
-        <span className="text-2xl">📎</span> Archivos del curso
+    <div style={{ maxWidth: 700 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1a1a2e', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span>📎</span> Archivos del curso
       </h2>
-      <p className="text-sm text-slate-500 mb-7 leading-relaxed">
-        Estos archivos estarán disponibles para descargar en la página del curso, visibles solo para los estudiantes inscriptos.
+      <p style={{ fontSize: 14, color: '#64748b', marginBottom: 28, lineHeight: 1.6 }}>
+        Disponibles para descargar solo para estudiantes inscriptos.
       </p>
 
-      {/* Drop zone */}
       <div
         onClick={() => !uploading && fileInputRef.current?.click()}
-        className="rounded-[16px] border-2 border-dashed p-8 flex flex-col items-center justify-center cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-all mb-6"
-        style={{ borderColor: '#c4b5fd' }}
+        style={{
+          borderRadius: 16, border: '2px dashed #c4b5fd', padding: '32px 24px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          cursor: uploading ? 'default' : 'pointer', background: '#faf9ff', marginBottom: 20,
+        }}
       >
         {uploading ? (
           <>
-            <div className="w-full bg-gray-100 rounded-full h-2 mb-3 max-w-[200px]">
-              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+            <div style={{ width: 200, background: '#ede9fe', borderRadius: 99, height: 8, marginBottom: 12 }}>
+              <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#7c3aed', borderRadius: 99, transition: 'width .3s' }} />
             </div>
-            <p className="text-sm font-semibold text-primary">{uploadProgress}% subido…</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#7c3aed', margin: 0 }}>{uploadProgress}%</p>
           </>
         ) : (
           <>
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="mb-3" style={{ color: '#7c3aed' }}>
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ marginBottom: 10, color: '#7c3aed' }}>
               <path d="M16 4v16M8 12l8-8 8 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M4 24h24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".4" />
             </svg>
-            <p className="text-sm font-semibold text-primary">Subir archivos</p>
-            <p className="text-xs text-slate-400 mt-1">PDF, DOC, PPT, XLS, ZIP — hasta 50 MB</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#7c3aed', margin: '0 0 4px' }}>Subir archivos</p>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>PDF, DOC, PPT, XLS, ZIP — hasta 50 MB</p>
           </>
         )}
       </div>
+      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt" style={{ display: 'none' }} onChange={handleUpload} />
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt"
-        className="hidden"
-        onChange={handleUpload}
-      />
-
-      {/* File list */}
-      <div className="flex flex-col gap-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {files.map((f) => (
           <div
             key={f.id}
-            className="flex items-center gap-4 p-4 rounded-[14px] border"
-            style={{ borderColor: '#f0ebfd' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 16, borderRadius: 14, border: '1.5px solid #f0ebfd' }}
           >
             <FileTypeBadge type={f.file_type} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-ink truncate">{f.name}</p>
-              {f.file_size_bytes && (
-                <p className="text-xs text-slate-400">{formatFileSize(f.file_size_bytes)}</p>
-              )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
+              {f.file_size_bytes && <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{formatFileSize(f.file_size_bytes)}</p>}
             </div>
             <button
               onClick={() => handleDelete(f.id)}
               disabled={deleting === f.id}
-              className="text-red-400 hover:text-red-500 border-none bg-transparent cursor-pointer p-1 rounded transition-colors disabled:opacity-40"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: 4, borderRadius: 4, opacity: deleting === f.id ? 0.4 : 1 }}
             >
-              {deleting === f.id ? (
-                <svg width="14" height="14" viewBox="0 0 14 14" className="animate-spin" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="7" cy="7" r="5" strokeOpacity=".3" />
-                  <path d="M7 2a5 5 0 0 1 5 5" strokeLinecap="round" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M1 1l12 12M13 1L1 13" />
-                </svg>
-              )}
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M1 1l12 12M13 1L1 13" />
+              </svg>
             </button>
           </div>
         ))}
-
-        {files.length === 0 && !uploading && (
-          <p className="text-sm text-slate-400 text-center py-6">Sin archivos subidos aún.</p>
+        {files.length === 0 && (
+          <p style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', padding: '24px 0' }}>Sin archivos subidos aún.</p>
         )}
       </div>
     </div>
   )
 }
 
-// ─── Small shared components ──────────────────────────────────────────────────
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">{label}</label>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>
+        {label}
+      </label>
       {children}
     </div>
   )
@@ -944,16 +1060,13 @@ const FILE_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
 function FileTypeBadge({ type }: { type: string }) {
   const { bg, color } = FILE_TYPE_COLORS[type] ?? FILE_TYPE_COLORS.file
   return (
-    <div
-      className="w-10 h-10 rounded-[10px] flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-      style={{ background: bg, color }}
-    >
+    <div style={{ width: 40, height: 40, borderRadius: 10, background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
       {type.toUpperCase().slice(0, 3)}
     </div>
   )
 }
 
-const INPUT_CLS =
+const INPUT =
   'px-4 py-3 rounded-[10px] border border-[#e2d9f7] text-sm font-sans outline-none text-ink bg-white focus:border-primary transition-colors w-full'
 
 function formatDuration(seconds: number): string {

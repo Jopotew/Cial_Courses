@@ -16,11 +16,22 @@ const sections = [
   },
   {
     to: '/admin/courses',
-    end: false,
+    end: true,
     label: 'Cursos',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M2 2h5a1 1 0 0 1 1 1v10a1 1 0 0 0-1-1H2V2zM14 2H9a1 1 0 0 0-1 1v10a1 1 0 0 1 1-1h5V2z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/admin/editor',
+    end: false,
+    label: 'Editor de cursos',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M11 2l3 3-8 8H3v-3L11 2z" />
+        <path d="M9 4l3 3" />
       </svg>
     ),
   },
@@ -68,7 +79,7 @@ export function AdminLayout() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile top bar */}
         <div className="flex md:hidden bg-hero items-center gap-3.5 px-4 h-[52px] flex-shrink-0">
           <button
