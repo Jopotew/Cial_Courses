@@ -23,6 +23,23 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+async function downloadFile(url: string, name: string) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(blobUrl)
+  } catch {
+    window.open(url, '_blank')
+  }
+}
+
 function FileIcon({ type }: { type: string }) {
   const isPdf = type.includes('pdf')
   const isDoc = type.includes('word') || type.includes('doc')
@@ -176,8 +193,10 @@ export function CourseDetail() {
         <div>
           {/* About */}
           <ContentSection title="Sobre este curso">
-            <p className="text-[15px] text-gray-700 leading-[1.7]">{course.description}</p>
-            <div className="flex gap-5 mt-5 flex-wrap">
+            {!course.subtitle && course.description && (
+              <p className="text-[15px] text-gray-700 leading-[1.7] mb-5">{course.description}</p>
+            )}
+            <div className="flex gap-5 flex-wrap">
               {([
                 [totalLessons > 0 ? `${totalLessons} clases` : null, 'Clases en video'],
                 [totalDuration || null, 'Duración total'],
@@ -264,14 +283,11 @@ export function CourseDetail() {
             <ContentSection title="Recursos descargables">
               <div className="flex flex-col gap-2">
                 {(courseFiles as CourseFile[]).map((file) => (
-                  <a
+                  <button
                     key={file.id}
-                    href={file.file_url}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ textDecoration: 'none' }}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-[#e2d9f7] hover:bg-[#f8f5ff] transition-colors"
+                    onClick={() => downloadFile(file.file_url, file.name)}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-[#e2d9f7] hover:bg-[#f8f5ff] transition-colors w-full text-left"
+                    style={{ background: 'white', cursor: 'pointer', fontFamily: 'inherit' }}
                   >
                     <FileIcon type={file.file_type} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -290,7 +306,7 @@ export function CourseDetail() {
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
                       <path d="M8 3v7M5 7l3 3 3-3M3 13h10" />
                     </svg>
-                  </a>
+                  </button>
                 ))}
               </div>
             </ContentSection>
