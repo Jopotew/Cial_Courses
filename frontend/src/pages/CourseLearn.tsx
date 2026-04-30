@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { coursesApi } from '@/api/courses'
-import { videosApi, type Video } from '@/api/videos'
+import { videosApi } from '@/api/videos'
+import { modulesApi, type CourseModule, type ModuleVideo } from '@/api/modules'
 import { progressApi } from '@/api/progress'
 import { useAuthStore } from '@/store/authStore'
 
@@ -12,32 +13,31 @@ export function CourseLearn() {
   const { isAuthenticated, user } = useAuthStore()
   const isAdmin = user?.isAdmin ?? false
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activeVideo, setActiveVideo] = useState<Video | null>(null)
+
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null)
   const [streamUrl, setStreamUrl] = useState<string | null>(null)
   const [loadingStream, setLoadingStream] = useState(false)
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // Course info
   const { data: course } = useQuery({
     queryKey: ['course', id, isAdmin],
     queryFn: async () => {
       if (isAdmin) {
         const raw = await coursesApi.getAdmin(id!)
-        // map raw admin response to Course shape minimally needed by learn page
-        return {
-          title: raw.title as string,
-          subtitle: (raw.subtitle as string | null) ?? '',
-          instructor: (raw.instructor_name as string) ?? '',
-          cardColor: '#7c3aed',
-        } as { title: string; subtitle: string; instructor: string; cardColor: string }
+        return { title: raw.title as string, subtitle: (raw.subtitle as string) ?? '', instructor: (raw.instructor_name as string) ?? '', instructorTitle: (raw.instructor_title as string) ?? '' }
       }
-      return coursesApi.get(id!)
+      const c = await coursesApi.get(id!)
+      return { title: c.title, subtitle: c.subtitle ?? '', instructor: c.instructor, instructorTitle: c.instructorTitle ?? '' }
     },
     enabled: !!id && isAuthenticated,
   })
 
-  const { data: videos = [], isError: videosError, error: videosRawError } = useQuery({
-    queryKey: ['videos', id, isAdmin],
-    queryFn: () => videosApi.list(id!),
+  // Modules with videos grouped
+  const { data: modules = [] } = useQuery({
+    queryKey: ['modules', id],
+    queryFn: () => modulesApi.list(id!),
     enabled: !!id && isAuthenticated,
     retry: false,
   })
@@ -48,31 +48,44 @@ export function CourseLearn() {
     enabled: !!id && isAuthenticated,
   })
 
-  // Solo redirigir si el usuario NO es admin y el error es de matriculación (403)
+  // Flat list for sequential nav (only published for students, all for admin)
+  const allVideos: ModuleVideo[] = modules.flatMap((m) => m.videos)
+  const activeIndex = allVideos.findIndex((v) => v.id === activeVideoId)
+  const activeVideo = activeIndex >= 0 ? allVideos[activeIndex] : null
+  const activeModule = modules.find((m) => m.videos.some((v) => v.id === activeVideoId)) ?? null
+
+  const canPrev = activeIndex > 0
+  const canNext = activeIndex >= 0 && activeIndex < allVideos.length - 1
+
+  // Auto-load first video
   useEffect(() => {
-    if (!videosError || isAdmin) return
-    const status = (videosRawError as { response?: { status?: number } })?.response?.status
-    if (status === 403 || status === 404) {
-      navigate(`/courses/${id}`, { replace: true })
+    if (allVideos.length > 0 && !activeVideoId) {
+      loadVideo(allVideos[0].id)
     }
-  }, [videosError, videosRawError, id, navigate, isAdmin])
+  }, [modules])
+
+  // Redirect non-admin non-enrolled users if modules fail
+  const { isError: modulesError, error: modulesRawError } = useQuery({
+    queryKey: ['modules', id],
+    queryFn: () => modulesApi.list(id!),
+    enabled: !!id && isAuthenticated,
+    retry: false,
+  })
 
   useEffect(() => {
-    if (videos.length > 0 && !activeVideo) loadVideo(videos[0])
-  }, [videos])
+    if (!modulesError || isAdmin) return
+    const status = (modulesRawError as { response?: { status?: number } })?.response?.status
+    if (status === 403 || status === 404) navigate(`/courses/${id}`, { replace: true })
+  }, [modulesError, modulesRawError, id, navigate, isAdmin])
 
-  const activeIndex = videos.findIndex((v) => v.id === activeVideo?.id)
-  const canGoPrev = activeIndex > 0
-  const canGoNext = activeIndex >= 0 && activeIndex < videos.length - 1
-
-  async function loadVideo(video: Video) {
-    if (activeVideo?.id === video.id) return
-    setActiveVideo(video)
+  async function loadVideo(videoId: string) {
+    if (videoId === activeVideoId) return
+    setActiveVideoId(videoId)
     setStreamUrl(null)
     setLoadingStream(true)
     setSidebarOpen(false)
     try {
-      const url = await videosApi.stream(video.id)
+      const url = await videosApi.stream(videoId)
       setStreamUrl(url)
     } catch {
       setStreamUrl(null)
@@ -81,53 +94,66 @@ export function CourseLearn() {
     }
   }
 
-  function goPrev() { if (canGoPrev) loadVideo(videos[activeIndex - 1]) }
-  function goNext() { if (canGoNext) loadVideo(videos[activeIndex + 1]) }
+  function handleVideoEnd() {
+    if (activeVideoId) setCompletedIds((prev) => new Set([...prev, activeVideoId!]))
+    if (canNext) loadVideo(allVideos[activeIndex + 1].id)
+  }
 
-  const cardColor = course?.cardColor ?? '#7c3aed'
+  const completedCount = completedIds.size
+  const totalCount = allVideos.length
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#f8f7ff' }}>
-      {/* ── Top bar — white, light ── */}
-      <header className="flex items-center gap-4 px-5 h-14 flex-shrink-0 bg-white border-b border-[#ede9fe] z-10">
+    <div style={{ background: '#0f0a1e', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff' }}>
+      {/* ── Top bar ── */}
+      <header
+        style={{
+          display: 'flex', alignItems: 'center', gap: 16,
+          padding: '0 20px', height: 56, flexShrink: 0,
+          background: '#1a1330', borderBottom: '1px solid rgba(255,255,255,.07)',
+          zIndex: 10,
+        }}
+      >
         <Link
           to={`/courses/${id}`}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-primary transition-colors no-underline"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.55)',
+            textDecoration: 'none', flexShrink: 0,
+          }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M10 12L6 8l4-4" />
           </svg>
-          Volver
+          Volver al curso
         </Link>
 
-        <div className="w-px h-5 bg-slate-200 flex-shrink-0" />
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,.12)', flexShrink: 0 }} />
 
-        <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-bold text-ink truncate">{course?.title ?? '…'}</p>
-          {videos.length > 0 && (
-            <p className="text-[11px] text-slate-400">
-              Clase {Math.max(activeIndex + 1, 1)} de {videos.length}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+            {course?.title ?? '…'}
+          </p>
+          {totalCount > 0 && (
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', margin: 0 }}>
+              Clase {Math.max(activeIndex + 1, 1)} de {totalCount}
             </p>
           )}
         </div>
 
-        {/* Progress pill — desktop */}
-        {videos.length > 0 && (
-          <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-            <div className="w-[72px] h-1.5 rounded-full overflow-hidden" style={{ background: '#ede9fe' }}>
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#7c3aed,#a78bfa)' }}
-              />
+        {totalCount > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <div style={{ width: 72, height: 5, borderRadius: 99, background: 'rgba(255,255,255,.15)', overflow: 'hidden' }}>
+              <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#7c3aed,#a78bfa)', borderRadius: 99, transition: 'width .5s' }} />
             </div>
-            <span className="text-xs font-bold text-primary">{progress}%</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa' }}>{progress}%</span>
           </div>
         )}
 
         {/* Mobile sidebar toggle */}
         <button
-          className="md:hidden p-1.5 bg-transparent border-none cursor-pointer text-slate-500 hover:text-primary transition-colors"
           onClick={() => setSidebarOpen(!sidebarOpen)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.6)', padding: 4 }}
+          className="md:hidden"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <path d="M3 5h14M3 10h14M3 15h14" />
@@ -136,26 +162,14 @@ export function CourseLearn() {
       </header>
 
       {/* ── Body ── */}
-      <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: 'calc(100vh - 56px)' }}>
 
-        {/* ── Main ── */}
-        <main className="flex-1 overflow-y-auto flex flex-col">
-
-          {/* Video player — stays dark for contrast */}
-          <div
-            className="w-full bg-black flex-shrink-0"
-            style={{ aspectRatio: '16/9', maxHeight: '65vh' }}
-          >
+        {/* ── Main content ── */}
+        <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Video player */}
+          <div style={{ background: '#000', width: '100%', flexShrink: 0, aspectRatio: '16/9', maxHeight: '62vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {loadingStream ? (
-              <div className="w-full h-full flex items-center justify-center">
-                <div
-                  className="w-10 h-10 rounded-full border-4 animate-spin"
-                  style={{
-                    borderColor: `${cardColor}33`,
-                    borderTopColor: cardColor,
-                  }}
-                />
-              </div>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', border: '4px solid rgba(124,58,237,.3)', borderTopColor: '#7c3aed', animation: 'spin .8s linear infinite' }} />
             ) : streamUrl ? (
               <video
                 ref={videoRef}
@@ -163,234 +177,299 @@ export function CourseLearn() {
                 src={streamUrl}
                 controls
                 autoPlay
-                className="w-full h-full"
-                style={{ outline: 'none' }}
+                onEnded={handleVideoEnd}
+                style={{ width: '100%', height: '100%', outline: 'none' }}
               />
             ) : (
-              <div
-                className="w-full h-full flex flex-col items-center justify-center gap-3"
-                style={{ background: `linear-gradient(160deg, ${cardColor}18, #000)` }}
-              >
-                <div
-                  className="w-20 h-20 rounded-full flex items-center justify-center border-2"
-                  style={{ background: 'rgba(255,255,255,.08)', borderColor: 'rgba(255,255,255,.15)' }}
-                >
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="white" opacity="0.5">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,.06)', border: '2px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="rgba(255,255,255,.4)">
                     <path d="M10 6l18 10L10 26V6z" />
                   </svg>
                 </div>
-                <p className="text-white/40 text-sm">
+                <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14, margin: 0 }}>
                   {activeVideo ? 'Error al cargar el video' : 'Seleccioná una clase para comenzar'}
                 </p>
               </div>
             )}
           </div>
 
-          {/* ── Video info + prev/next — light ── */}
-          <div className="bg-white border-b border-[#ede9fe] px-6 py-5 flex-shrink-0">
-            <div className="max-w-3xl flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex-1 min-w-0">
-                {activeVideo ? (
-                  <>
-                    <h1 className="text-[18px] font-extrabold text-ink mb-1 tracking-tight leading-snug">
-                      {activeVideo.title}
-                    </h1>
-                    {course?.instructor && (
-                      <p className="text-sm text-slate-500">{course.instructor}</p>
-                    )}
-                    {activeVideo.description && (
-                      <p className="text-[14px] text-slate-600 leading-relaxed mt-2">{activeVideo.description}</p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <h1 className="text-[18px] font-extrabold text-ink mb-1 tracking-tight">{course?.title}</h1>
-                    <p className="text-sm text-slate-500">{course?.subtitle}</p>
-                  </>
-                )}
-              </div>
+          {/* ── Info strip below player ── */}
+          <div style={{ flex: 1, background: '#1a1330', padding: '20px 28px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            {activeModule && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#a78bfa', background: 'rgba(124,58,237,.2)', borderRadius: 6, padding: '3px 10px', alignSelf: 'flex-start', marginBottom: 10 }}>
+                {activeModule.title}
+              </span>
+            )}
+            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: '0 0 6px', lineHeight: 1.2, letterSpacing: '-0.3px' }}>
+              {activeVideo?.title ?? course?.title ?? '…'}
+            </h1>
+            {course?.instructor && (
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', margin: '0 0 20px' }}>
+                {course.instructor}{course.instructorTitle ? ` · ${course.instructorTitle}` : ''}
+              </p>
+            )}
 
-              {/* Prev / Next */}
-              {videos.length > 1 && (
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={goPrev}
-                    disabled={!canGoPrev}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold border transition-all font-sans"
-                    style={{
-                      background: 'white',
-                      borderColor: '#e2d9f7',
-                      color: canGoPrev ? '#1a1a2e' : '#c4b5fd',
-                      cursor: canGoPrev ? 'pointer' : 'default',
-                    }}
-                  >
-                    ← Anterior
-                  </button>
-                  <button
-                    onClick={goNext}
-                    disabled={!canGoNext}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold border-none transition-all font-sans"
-                    style={{
-                      background: canGoNext ? '#7c3aed' : '#ede9fe',
-                      color: canGoNext ? '#fff' : '#c4b5fd',
-                      cursor: canGoNext ? 'pointer' : 'default',
-                    }}
-                  >
-                    Siguiente →
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Prev / Next */}
+            {totalCount > 1 && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
+                <button
+                  onClick={() => canPrev && loadVideo(allVideos[activeIndex - 1].id)}
+                  disabled={!canPrev}
+                  style={{
+                    padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                    border: '1.5px solid rgba(255,255,255,.15)', background: 'transparent',
+                    color: canPrev ? '#fff' : 'rgba(255,255,255,.2)',
+                    cursor: canPrev ? 'pointer' : 'default', fontFamily: 'inherit',
+                  }}
+                >
+                  ← Anterior
+                </button>
+                <button
+                  onClick={() => canNext && loadVideo(allVideos[activeIndex + 1].id)}
+                  disabled={!canNext}
+                  style={{
+                    padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                    border: 'none', fontFamily: 'inherit',
+                    background: canNext ? '#7c3aed' : 'rgba(124,58,237,.2)',
+                    color: canNext ? '#fff' : 'rgba(255,255,255,.2)',
+                    cursor: canNext ? 'pointer' : 'default',
+                  }}
+                >
+                  Siguiente →
+                </button>
+              </div>
+            )}
           </div>
-
-          {/* ── Mobile video list (inline) ── */}
-          {videos.length > 0 && (
-            <div className="md:hidden bg-white mt-2 border-t border-[#ede9fe]">
-              <div className="px-4 py-3 border-b border-[#ede9fe]">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clases del curso</p>
-              </div>
-              {videos.map((video, index) => (
-                <VideoRow
-                  key={video.id}
-                  video={video}
-                  index={index}
-                  isActive={activeVideo?.id === video.id}
-                  onClick={() => loadVideo(video)}
-                />
-              ))}
-            </div>
-          )}
         </main>
 
-        {/* ── Desktop sidebar — white, light ── */}
-        <aside className="w-[280px] flex-shrink-0 bg-white border-l border-[#ede9fe] hidden md:flex flex-col overflow-y-auto">
-          <SidebarHeader videos={videos} progress={progress} />
-          {videos.length === 0 ? (
-            <EmptyVideos />
-          ) : (
-            <div className="flex flex-col flex-1 overflow-y-auto">
-              {videos.map((video, index) => (
-                <VideoRow
-                  key={video.id}
-                  video={video}
-                  index={index}
-                  isActive={activeVideo?.id === video.id}
-                  onClick={() => loadVideo(video)}
-                />
-              ))}
-            </div>
-          )}
+        {/* ── Desktop Sidebar ── */}
+        <aside
+          className="hidden md:flex"
+          style={{
+            width: 310, flexShrink: 0,
+            background: '#0d0a18',
+            borderLeft: '1px solid rgba(255,255,255,.06)',
+            flexDirection: 'column',
+            overflowY: 'auto',
+          }}
+        >
+          <SidebarContent
+            modules={modules}
+            totalCount={totalCount}
+            completedCount={completedCount}
+            completedIds={completedIds}
+            activeVideoId={activeVideoId}
+            progress={progress}
+            onSelect={loadVideo}
+          />
         </aside>
 
         {/* ── Mobile sidebar overlay ── */}
         {sidebarOpen && (
           <div
-            className="md:hidden fixed inset-0 bg-black/30 z-30"
+            className="md:hidden"
             onClick={() => setSidebarOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 30 }}
           />
         )}
         <aside
-          className="md:hidden fixed top-14 right-0 bottom-0 z-40 w-[280px] bg-white flex flex-col border-l border-[#ede9fe] shadow-xl transition-transform duration-300"
-          style={{ transform: sidebarOpen ? 'translateX(0)' : 'translateX(100%)' }}
+          className="md:hidden"
+          style={{
+            position: 'fixed', top: 56, right: 0, bottom: 0,
+            width: 300, background: '#0d0a18',
+            borderLeft: '1px solid rgba(255,255,255,.06)',
+            zIndex: 40, display: 'flex', flexDirection: 'column', overflowY: 'auto',
+            transform: sidebarOpen ? 'translateX(0)' : 'translateX(100%)',
+            transition: 'transform .3s',
+          }}
         >
-          <SidebarHeader videos={videos} progress={progress} />
-          <div className="flex flex-col flex-1 overflow-y-auto">
-            {videos.map((video, index) => (
-              <VideoRow
-                key={video.id}
-                video={video}
-                index={index}
-                isActive={activeVideo?.id === video.id}
-                onClick={() => { loadVideo(video); setSidebarOpen(false) }}
-              />
-            ))}
-          </div>
+          <SidebarContent
+            modules={modules}
+            totalCount={totalCount}
+            completedCount={completedCount}
+            completedIds={completedIds}
+            activeVideoId={activeVideoId}
+            progress={progress}
+            onSelect={(id) => { loadVideo(id); setSidebarOpen(false) }}
+          />
         </aside>
       </div>
     </div>
   )
 }
 
-function SidebarHeader({ videos, progress }: { videos: Video[]; progress: number }) {
-  return (
-    <div className="px-4 py-4 border-b border-[#ede9fe] flex-shrink-0">
-      <p className="text-[13px] font-bold text-ink">Contenido del curso</p>
-      {videos.length > 0 && (
-        <>
-          <p className="text-xs text-slate-400 mt-0.5">{videos.length} clases · {progress}% completado</p>
-          <div className="h-1.5 rounded-full mt-2.5 overflow-hidden" style={{ background: '#ede9fe' }}>
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#7c3aed,#a78bfa)' }}
-            />
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
+// ─── Sidebar Content ─────────────────────────────────────────────────────────
 
-function EmptyVideos() {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: '#ede9fe' }}>
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-          <path d="M8 7.5l7 3.5-7 3.5V7.5z" fill="#7c3aed" />
-        </svg>
-      </div>
-      <p className="text-sm text-slate-500 font-medium">Sin clases disponibles aún</p>
-      <p className="text-xs text-slate-400 mt-1">El instructor está preparando el contenido.</p>
-    </div>
-  )
-}
-
-function VideoRow({
-  video,
-  index,
-  isActive,
-  onClick,
+function SidebarContent({
+  modules,
+  totalCount,
+  completedCount,
+  completedIds,
+  activeVideoId,
+  progress,
+  onSelect,
 }: {
-  video: Video
-  index: number
-  isActive: boolean
-  onClick: () => void
+  modules: CourseModule[]
+  totalCount: number
+  completedCount: number
+  completedIds: Set<string>
+  activeVideoId: string | null
+  progress: number
+  onSelect: (videoId: string) => void
 }) {
   return (
-    <button
-      onClick={onClick}
-      className="flex items-start gap-3 px-4 py-3.5 text-left border-none cursor-pointer transition-all border-b w-full font-sans"
-      style={{
-        background: isActive ? '#f5f3ff' : 'transparent',
-        borderColor: '#f0ebfd',
-        borderLeft: isActive ? '3px solid #7c3aed' : '3px solid transparent',
-      }}
-    >
-      <div
-        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-[11px] font-bold"
+    <>
+      {/* Header */}
+      <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
+        <p style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>Contenido del curso</p>
+        {totalCount > 0 && (
+          <>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', margin: '0 0 10px' }}>
+              {completedCount} de {totalCount} clases completadas
+            </p>
+            <div style={{ height: 4, background: 'rgba(255,255,255,.1)', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#7c3aed,#a78bfa)', borderRadius: 99, transition: 'width .5s' }} />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Modules */}
+      {modules.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(124,58,237,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <path d="M8 7.5l7 3.5-7 3.5V7.5z" fill="#7c3aed" />
+            </svg>
+          </div>
+          <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>Sin clases disponibles aún</p>
+          <p style={{ color: 'rgba(255,255,255,.25)', fontSize: 12, margin: 0 }}>El instructor está preparando el contenido.</p>
+        </div>
+      ) : (
+        modules.map((mod) => (
+          <ModuleSection
+            key={mod.id}
+            module={mod}
+            activeVideoId={activeVideoId}
+            completedIds={completedIds}
+            onSelect={onSelect}
+          />
+        ))
+      )}
+    </>
+  )
+}
+
+// ─── Module section (accordion in sidebar) ───────────────────────────────────
+
+function ModuleSection({
+  module,
+  activeVideoId,
+  completedIds,
+  onSelect,
+}: {
+  module: CourseModule
+  activeVideoId: string | null
+  completedIds: Set<string>
+  onSelect: (videoId: string) => void
+}) {
+  const hasActive = module.videos.some((v) => v.id === activeVideoId)
+  const [expanded, setExpanded] = useState(hasActive)
+
+  const completedInModule = module.videos.filter((v) => completedIds.has(v.id)).length
+  const totalInModule = module.videos.length
+
+  const totalSeconds = module.videos.reduce((sum, v) => sum + (v.duration_seconds ?? 0), 0)
+  const durationLabel = formatDuration(totalSeconds)
+
+  return (
+    <div style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+      {/* Module header */}
+      <button
+        onClick={() => setExpanded((e) => !e)}
         style={{
-          background: isActive ? '#7c3aed' : '#ede9fe',
-          color: isActive ? '#fff' : '#7c3aed',
+          width: '100%', textAlign: 'left', padding: '14px 20px',
+          background: expanded ? 'rgba(255,255,255,.04)' : 'transparent',
+          border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'flex-start', gap: 10,
         }}
       >
-        {isActive ? (
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="white">
-            <path d="M2 1.5l6 3.5-6 3.5V1.5z" />
-          </svg>
-        ) : (
-          index + 1
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p
-          className="text-[13px] font-semibold leading-[1.3] truncate"
-          style={{ color: isActive ? '#7c3aed' : '#1a1a2e' }}
+        <svg
+          width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2" strokeLinecap="round"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .2s', marginTop: 3, flexShrink: 0 }}
         >
-          {video.title}
-        </p>
-        {video.durationFormatted && (
-          <p className="text-[11px] text-slate-400 mt-0.5">{video.durationFormatted}</p>
-        )}
-      </div>
-    </button>
+          <path d="M4 2l4 4-4 4" />
+        </svg>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {module.title}
+          </p>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', margin: 0 }}>
+            {completedInModule}/{totalInModule} clases{durationLabel ? ` · ${durationLabel}` : ''}
+          </p>
+        </div>
+      </button>
+
+      {/* Videos */}
+      {expanded && module.videos.map((vid, idx) => {
+        const isActive = vid.id === activeVideoId
+        const isDone = completedIds.has(vid.id)
+        return (
+          <button
+            key={vid.id}
+            onClick={() => onSelect(vid.id)}
+            style={{
+              width: '100%', textAlign: 'left', padding: '10px 20px 10px 42px',
+              background: isActive ? 'rgba(124,58,237,.25)' : 'transparent',
+              borderLeft: `3px solid ${isActive ? '#7c3aed' : 'transparent'}`,
+              border: 'none', borderRight: 'none', borderTop: 'none', borderBottom: 'none',
+              borderLeftStyle: 'solid', borderLeftWidth: 3, borderLeftColor: isActive ? '#7c3aed' : 'transparent',
+              cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10,
+            }}
+          >
+            {/* Completion indicator */}
+            <div style={{
+              width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: isDone ? '#059669' : isActive ? '#7c3aed' : 'rgba(255,255,255,.08)',
+              border: isDone || isActive ? 'none' : '1.5px solid rgba(255,255,255,.15)',
+            }}>
+              {isDone ? (
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                  <path d="M2 5.5l2.5 2.5 4.5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : isActive ? (
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="white">
+                  <path d="M2 1l6 3.5-6 3.5V1z" />
+                </svg>
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.4)' }}>{idx + 1}</span>
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? '#a78bfa' : isDone ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.75)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {vid.title}
+              </p>
+              {vid.duration_seconds != null && (
+                <p style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', margin: 0 }}>
+                  {formatDuration(vid.duration_seconds)}
+                </p>
+              )}
+            </div>
+          </button>
+        )
+      })}
+    </div>
   )
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDuration(seconds: number): string {
+  if (!seconds) return ''
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  if (h > 0) return `${h}h ${m}min`
+  if (m > 0) return `${m}min ${s > 0 ? s + 's' : ''}`
+  return `${s}s`
 }

@@ -2,19 +2,83 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { coursesApi } from '@/api/courses'
+import { modulesApi, type CourseModule } from '@/api/modules'
+import { courseFilesApi, type CourseFile } from '@/api/courseFiles'
 import { Badge, StarRating } from '@/components/ui'
 import { PurchaseCard } from '@/components/shared/PurchaseCard'
+import { useAuthStore } from '@/store/authStore'
+
+function fmtDuration(totalSeconds: number): string {
+  if (!totalSeconds) return ''
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  if (h > 0) return `${h}h${m > 0 ? ` ${m}min` : ''}`
+  if (m > 0) return `${m}min`
+  return `${totalSeconds}s`
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function FileIcon({ type }: { type: string }) {
+  const isPdf = type.includes('pdf')
+  const isDoc = type.includes('word') || type.includes('doc')
+  const isXls = type.includes('excel') || type.includes('sheet')
+  const isPpt = type.includes('powerpoint') || type.includes('presentation')
+  const isZip = type.includes('zip')
+  const isImg = type.startsWith('image/')
+
+  const color = isPdf ? '#dc2626' : isDoc ? '#2563eb' : isXls ? '#059669' : isPpt ? '#d97706' : isZip ? '#6b7280' : isImg ? '#7c3aed' : '#64748b'
+  const label = isPdf ? 'PDF' : isDoc ? 'DOC' : isXls ? 'XLS' : isPpt ? 'PPT' : isZip ? 'ZIP' : isImg ? 'IMG' : 'FILE'
+
+  return (
+    <div
+      style={{
+        width: 38, height: 38, borderRadius: 8, flexShrink: 0,
+        background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 9, fontWeight: 800, color, letterSpacing: 0.5,
+      }}
+    >
+      {label}
+    </div>
+  )
+}
 
 export function CourseDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [openModule, setOpenModule] = useState<number | null>(null)
+  const { isAuthenticated } = useAuthStore()
+  const [openModuleId, setOpenModuleId] = useState<string | null>(null)
 
   const { data: course, isLoading } = useQuery({
     queryKey: ['course', id],
     queryFn: () => coursesApi.get(id!),
     enabled: !!id,
   })
+
+  const { data: modules = [] } = useQuery({
+    queryKey: ['modules', id],
+    queryFn: () => modulesApi.list(id!),
+    enabled: !!id && isAuthenticated,
+    retry: false,
+  })
+
+  const { data: courseFiles = [] } = useQuery({
+    queryKey: ['course-files', id],
+    queryFn: () => courseFilesApi.list(id!),
+    enabled: !!id && isAuthenticated,
+    retry: false,
+    throwOnError: false,
+  })
+
+  // Compute totals from real module data
+  const allVideos = modules.flatMap((m: CourseModule) => m.videos)
+  const totalLessons = allVideos.length
+  const totalSeconds = allVideos.reduce((sum, v) => sum + (v.duration_seconds ?? 0), 0)
+  const totalDuration = fmtDuration(totalSeconds)
 
   if (isLoading || !course) {
     return (
@@ -102,7 +166,7 @@ export function CourseDetail() {
 
           {/* Purchase card in hero on desktop */}
           <div className="hidden md:block">
-            <PurchaseCard course={course} />
+            <PurchaseCard course={course} totalLessons={totalLessons} totalDuration={totalDuration} />
           </div>
         </div>
       </div>
@@ -114,11 +178,11 @@ export function CourseDetail() {
           <ContentSection title="Sobre este curso">
             <p className="text-[15px] text-gray-700 leading-[1.7]">{course.description}</p>
             <div className="flex gap-5 mt-5 flex-wrap">
-              {[
-                [course.lessons ? `${course.lessons} clases` : null, 'Clases en video'],
-                [course.duration || null, 'Duración total'],
+              {([
+                [totalLessons > 0 ? `${totalLessons} clases` : null, 'Clases en video'],
+                [totalDuration || null, 'Duración total'],
                 [course.level, 'Nivel'],
-              ]
+              ] as [string | null, string][])
                 .filter(([v]) => v != null)
                 .map(([v, l]) => (
                   <div
@@ -132,63 +196,101 @@ export function CourseDetail() {
             </div>
           </ContentSection>
 
-          {/* Curriculum */}
-          {course.modules.length > 0 && (
-            <ContentSection title={`Contenido del curso · ${course.lessons} clases · ${course.duration}`}>
+          {/* Curriculum — real modules from API */}
+          {modules.length > 0 && (
+            <ContentSection
+              title={`Contenido del curso${totalLessons > 0 ? ` · ${totalLessons} clases` : ''}${totalDuration ? ` · ${totalDuration}` : ''}`}
+            >
               <div className="flex flex-col gap-2">
-                {course.modules.map((mod, i) => (
-                  <div key={i} className="border-[1.5px] border-[#e2d9f7] rounded-xl overflow-hidden">
-                    <button
-                      onClick={() => setOpenModule(openModule === i ? null : i)}
-                      className="w-full flex items-center justify-between px-[18px] py-3.5 border-none cursor-pointer font-sans transition-colors text-left"
-                      style={{ background: openModule === i ? '#f5f3ff' : '#fff' }}
-                    >
-                      <span className="text-sm font-semibold text-ink">{mod.title}</span>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <span className="text-xs text-slate-400">
-                          {mod.lessons} clases · {mod.duration}
-                        </span>
-                        <svg
-                          width="16" height="16" viewBox="0 0 16 16" fill="none"
-                          stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"
-                          style={{
-                            transform: openModule === i ? 'rotate(180deg)' : 'none',
-                            transition: 'transform .2s',
-                          }}
-                        >
-                          <path d="M4 6l4 4 4-4" />
-                        </svg>
-                      </div>
-                    </button>
-                    {openModule === i && (
-                      <div className="px-[18px] py-3 bg-canvas border-t border-[#f0ebfd]">
-                        {Array.from({ length: Math.min(mod.lessons, 4) }).map((_, j) => (
-                          <div
-                            key={j}
-                            className="flex items-center gap-3 py-2 border-b border-[#f0ebfd] last:border-0"
+                {modules.map((mod: CourseModule) => {
+                  const modSeconds = mod.videos.reduce((s, v) => s + (v.duration_seconds ?? 0), 0)
+                  const modDuration = fmtDuration(modSeconds)
+                  const isOpen = openModuleId === mod.id
+                  return (
+                    <div key={mod.id} className="border-[1.5px] border-[#e2d9f7] rounded-xl overflow-hidden">
+                      <button
+                        onClick={() => setOpenModuleId(isOpen ? null : mod.id)}
+                        className="w-full flex items-center justify-between px-[18px] py-3.5 border-none cursor-pointer font-sans transition-colors text-left"
+                        style={{ background: isOpen ? '#f5f3ff' : '#fff' }}
+                      >
+                        <span className="text-sm font-semibold text-ink">{mod.title}</span>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className="text-xs text-slate-400">
+                            {mod.videos.length} {mod.videos.length === 1 ? 'clase' : 'clases'}
+                            {modDuration ? ` · ${modDuration}` : ''}
+                          </span>
+                          <svg
+                            width="16" height="16" viewBox="0 0 16 16" fill="none"
+                            stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"
+                            style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
                           >
-                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                              <circle cx="9" cy="9" r="8" fill="#ede9fe" />
-                              <path d="M7 6.5l5 2.5-5 2.5V6.5z" fill="#7c3aed" />
-                            </svg>
-                            <span className="text-[13px] text-gray-700">
-                              Clase {j + 1}: {mod.title} — parte {j + 1}
-                            </span>
-                            {j === 0 && course.free && (
-                              <span className="ml-auto text-[11px] text-accent font-semibold">
-                                Vista previa
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                        {mod.lessons > 4 && (
-                          <p className="text-xs text-slate-400 pt-2.5">
-                            + {mod.lessons - 4} clases más
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                            <path d="M4 6l4 4 4-4" />
+                          </svg>
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div className="px-[18px] py-3 bg-canvas border-t border-[#f0ebfd]">
+                          {mod.videos.map((vid) => (
+                            <div
+                              key={vid.id}
+                              className="flex items-center gap-3 py-2 border-b border-[#f0ebfd] last:border-0"
+                            >
+                              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                                <circle cx="9" cy="9" r="8" fill="#ede9fe" />
+                                <path d="M7 6.5l5 2.5-5 2.5V6.5z" fill="#7c3aed" />
+                              </svg>
+                              <span className="text-[13px] text-gray-700 flex-1">{vid.title}</span>
+                              {vid.duration_seconds != null && (
+                                <span className="text-[11px] text-slate-400 flex-shrink-0">
+                                  {fmtDuration(vid.duration_seconds)}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                          {mod.videos.length === 0 && (
+                            <p className="text-xs text-slate-400 py-2">Sin clases aún.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </ContentSection>
+          )}
+
+          {/* Recursos descargables — only shown when enrolled (backend returns 403 otherwise) */}
+          {courseFiles.length > 0 && (
+            <ContentSection title="Recursos descargables">
+              <div className="flex flex-col gap-2">
+                {(courseFiles as CourseFile[]).map((file) => (
+                  <a
+                    key={file.id}
+                    href={file.file_url}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ textDecoration: 'none' }}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-[#e2d9f7] hover:bg-[#f8f5ff] transition-colors"
+                  >
+                    <FileIcon type={file.file_type} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
+                        className="text-[13px] font-semibold text-ink"
+                        style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {file.name}
+                      </p>
+                      {file.file_size_bytes != null && (
+                        <p className="text-[11px] text-slate-400" style={{ margin: 0 }}>
+                          {formatFileSize(file.file_size_bytes)}
+                        </p>
+                      )}
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
+                      <path d="M8 3v7M5 7l3 3 3-3M3 13h10" />
+                    </svg>
+                  </a>
                 ))}
               </div>
             </ContentSection>
@@ -197,12 +299,12 @@ export function CourseDetail() {
 
         {/* Purchase card sticky on desktop (right column) */}
         <div className="hidden md:block">
-          <PurchaseCard course={course} sticky />
+          <PurchaseCard course={course} sticky totalLessons={totalLessons} totalDuration={totalDuration} />
         </div>
 
         {/* Purchase card mobile (bottom) */}
         <div className="md:hidden">
-          <PurchaseCard course={course} />
+          <PurchaseCard course={course} totalLessons={totalLessons} totalDuration={totalDuration} />
         </div>
       </div>
 

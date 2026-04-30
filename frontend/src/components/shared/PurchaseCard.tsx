@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Course } from '@/types'
 import { Button } from '@/components/ui'
@@ -7,26 +7,21 @@ import { formatPrice } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { paymentsApi } from '@/api/payments'
 import { enrollmentsApi } from '@/api/enrollments'
+import { progressApi } from '@/api/progress'
 
 interface PurchaseCardProps {
   course: Course
   sticky?: boolean
+  totalLessons?: number
+  totalDuration?: string
 }
 
-const includes = [
-  ['▶', (c: Course) => `${c.duration || 'Acceso'} de video`],
-  ['◉', (c: Course) => `${c.lessons || 'Múltiples'} clases`],
-  ['∞', () => 'Acceso de por vida'],
-  ['✦', () => 'Certificado de finalización'],
-] as const
-
-export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
+export function PurchaseCard({ course, sticky, totalLessons = 0, totalDuration = '' }: PurchaseCardProps) {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
   const queryClient = useQueryClient()
   const [purchasing, setPurchasing] = useState(false)
 
-  // Use the same cached query as Dashboard — zero extra requests if already fetched
   const { data: enrolledCourses = [] } = useQuery({
     queryKey: ['my-courses'],
     queryFn: enrollmentsApi.myCourses,
@@ -34,6 +29,14 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
   })
 
   const isEnrolled = enrolledCourses.some((c) => c.id === course.id)
+
+  const { data: progress = 0 } = useQuery({
+    queryKey: ['progress', course.id],
+    queryFn: () => progressApi.getCourse(course.id),
+    enabled: isEnrolled,
+  })
+
+  const completedCount = totalLessons > 0 ? Math.round((progress / 100) * totalLessons) : 0
 
   const discount =
     (course.originalPrice ?? 0) > course.price
@@ -75,7 +78,10 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
       {/* Thumbnail */}
       <div
         className="h-[140px] flex items-center justify-center"
-        style={{ background: `linear-gradient(135deg, ${course.cardColor}dd, ${course.cardColor}88)` }}
+        style={{
+          background: `linear-gradient(135deg, ${course.cardColor}dd, ${course.cardColor}88)`,
+          position: 'relative',
+        }}
       >
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center text-[22px] font-extrabold text-white"
@@ -83,21 +89,79 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
         >
           {course.instructorInitials}
         </div>
+
+        {isEnrolled && (
+          <div
+            style={{
+              position: 'absolute', top: 12, right: 12,
+              background: '#059669', color: '#fff',
+              borderRadius: 8, padding: '4px 10px',
+              fontSize: 12, fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <path d="M2 5.5l2.5 2.5 4.5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Inscripto
+          </div>
+        )}
       </div>
 
       <div className="p-[22px]">
         {isEnrolled ? (
-          <div className="text-center">
-            <div className="w-14 h-14 rounded-full bg-accent-light flex items-center justify-center mx-auto mb-3">
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <path d="M6 14l6 6 10-12" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+          <>
+            <p className="text-sm font-bold text-gray-800 mb-3">Continuar donde dejaste</p>
+
+            {/* Progress bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <div style={{ flex: 1, height: 8, background: '#f0ebfd', borderRadius: 99, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: `${progress}%`, height: '100%',
+                    background: 'linear-gradient(90deg, #7c3aed, #a78bfa)',
+                    borderRadius: 99, transition: 'width .5s',
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#7c3aed', flexShrink: 0 }}>
+                {progress}%
+              </span>
             </div>
-            <p className="text-base font-bold text-accent mb-4">¡Ya estás inscripto!</p>
+            {totalLessons > 0 && (
+              <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>
+                {completedCount} de {totalLessons} clases completadas
+              </p>
+            )}
+
             <Button variant="primary" fullWidth size="lg" onClick={() => navigate(`/courses/${course.id}/learn`)}>
-              Ir a mi aprendizaje
+              ▶ Continuar curso
             </Button>
-          </div>
+
+            {/* Stats 2×2 grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16 }}>
+              {([
+                ['Duración total', totalDuration || '—'],
+                ['Lecciones', totalLessons ? String(totalLessons) : '—'],
+                ['Nivel', course.level || 'General'],
+                ['Certificado', 'Incluido'],
+              ] as [string, string][]).map(([label, value]) => (
+                <div key={label} style={{ background: '#f8f5ff', borderRadius: 12, padding: '10px 12px' }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a2e', margin: '0 0 2px' }}>{value}</p>
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>{label}</p>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ textAlign: 'center', marginTop: 14, marginBottom: 0 }}>
+              <Link
+                to="/dashboard"
+                style={{ fontSize: 13, color: '#7c3aed', fontWeight: 600, textDecoration: 'none' }}
+              >
+                Ver en Mi aprendizaje →
+              </Link>
+            </p>
+          </>
         ) : (
           <>
             <div className="flex items-baseline gap-2.5 mb-1">
@@ -128,19 +192,24 @@ export function PurchaseCard({ course, sticky }: PurchaseCardProps) {
                 Pago seguro a través de MercadoPago. Acceso ilimitado sin vencimiento.
               </p>
             )}
+
+            {/* Includes */}
+            <div className="mt-5 pt-4 border-t border-[#f0ebfd]">
+              <p className="text-xs font-bold text-gray-700 mb-2.5">Este curso incluye:</p>
+              {[
+                ['▶', `${totalDuration || course.duration || 'Acceso'} de video`],
+                ['◉', `${totalLessons || course.lessons || 'Múltiples'} clases`],
+                ['∞', 'Acceso de por vida'],
+                ['✦', 'Certificado de finalización'],
+              ].map(([icon, label]) => (
+                <div key={icon} className="flex items-center gap-2.5 text-[13px] text-gray-700 mb-2">
+                  <span className="text-primary text-sm">{icon}</span>
+                  {label}
+                </div>
+              ))}
+            </div>
           </>
         )}
-
-        {/* Includes */}
-        <div className="mt-5 pt-4 border-t border-[#f0ebfd]">
-          <p className="text-xs font-bold text-gray-700 mb-2.5">Este curso incluye:</p>
-          {includes.map(([icon, getLabel]) => (
-            <div key={icon} className="flex items-center gap-2.5 text-[13px] text-gray-700 mb-2">
-              <span className="text-primary text-sm">{icon}</span>
-              {getLabel(course)}
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )
