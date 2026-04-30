@@ -9,7 +9,8 @@ import { useAuthStore } from '@/store/authStore'
 export function CourseLearn() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
+  const isAdmin = user?.isAdmin ?? false
   const videoRef = useRef<HTMLVideoElement>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeVideo, setActiveVideo] = useState<Video | null>(null)
@@ -17,13 +18,25 @@ export function CourseLearn() {
   const [loadingStream, setLoadingStream] = useState(false)
 
   const { data: course } = useQuery({
-    queryKey: ['course', id],
-    queryFn: () => coursesApi.get(id!),
-    enabled: !!id,
+    queryKey: ['course', id, isAdmin],
+    queryFn: async () => {
+      if (isAdmin) {
+        const raw = await coursesApi.getAdmin(id!)
+        // map raw admin response to Course shape minimally needed by learn page
+        return {
+          title: raw.title as string,
+          subtitle: (raw.subtitle as string | null) ?? '',
+          instructor: (raw.instructor_name as string) ?? '',
+          cardColor: '#7c3aed',
+        } as { title: string; subtitle: string; instructor: string; cardColor: string }
+      }
+      return coursesApi.get(id!)
+    },
+    enabled: !!id && isAuthenticated,
   })
 
-  const { data: videos = [], isError: videosError } = useQuery({
-    queryKey: ['videos', id],
+  const { data: videos = [], isError: videosError, error: videosRawError } = useQuery({
+    queryKey: ['videos', id, isAdmin],
     queryFn: () => videosApi.list(id!),
     enabled: !!id && isAuthenticated,
     retry: false,
@@ -35,9 +48,14 @@ export function CourseLearn() {
     enabled: !!id && isAuthenticated,
   })
 
+  // Solo redirigir si el usuario NO es admin y el error es de matriculación (403)
   useEffect(() => {
-    if (videosError) navigate(`/courses/${id}`, { replace: true })
-  }, [videosError, id, navigate])
+    if (!videosError || isAdmin) return
+    const status = (videosRawError as { response?: { status?: number } })?.response?.status
+    if (status === 403 || status === 404) {
+      navigate(`/courses/${id}`, { replace: true })
+    }
+  }, [videosError, videosRawError, id, navigate, isAdmin])
 
   useEffect(() => {
     if (videos.length > 0 && !activeVideo) loadVideo(videos[0])

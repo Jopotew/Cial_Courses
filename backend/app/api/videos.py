@@ -81,23 +81,27 @@ def list_course_videos(
 ):
     """
     Lista los videos de un curso.
-    
+
     ✅ Requiere: JWT válido + matrícula activa en el curso (o ser admin).
+    Los admins ven videos y cursos en borrador sin restricción.
     """
     user_id = UUID(current_user["id"])
-    
-    # Verificar que el curso existe y está publicado
-    course = course_service.get_course_by_id(course_id, include_unpublished=False)
+    user_role = current_user.get("role", 0)
+    is_admin = user_role == 1
+
+    # Admins acceden a cursos en borrador; usuarios normales solo publicados
+    course = course_service.get_course_by_id(course_id, include_unpublished=is_admin)
     if course is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Curso no encontrado o no está publicado.",
         )
-    
-    # ✅ VALIDAR MATRÍCULA
-    _check_enrollment(user_id, course_id, current_user.get("role", 0))
-    
-    videos = video_service.get_videos_by_course(course_id, include_unpublished=False)
+
+    # Validar matrícula (admins tienen acceso automático)
+    _check_enrollment(user_id, course_id, user_role)
+
+    # Admins ven videos no publicados también
+    videos = video_service.get_videos_by_course(course_id, include_unpublished=is_admin)
     return [VideoResponse.model_validate(v) for v in videos]
 
 
