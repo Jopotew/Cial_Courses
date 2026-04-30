@@ -16,7 +16,7 @@ def _client():
     return get_supabase_admin_client()
 
 
-def get_modules_by_course(course_id: UUID) -> list[dict]:
+def get_modules_by_course(course_id: UUID, include_unpublished_videos: bool = True) -> list[dict]:
     result = _client().table("modules").select("*").eq("course_id", str(course_id)).order("order").execute()
     modules = result.data or []
 
@@ -24,14 +24,17 @@ def get_modules_by_course(course_id: UUID) -> list[dict]:
         return modules
 
     # Cargar videos de este curso y agruparlos por module_id
-    videos_result = (
+    videos_query = (
         _client()
         .table("videos")
         .select("id, title, order, duration_seconds, is_published, module_id")
         .eq("course_id", str(course_id))
         .order("order")
-        .execute()
     )
+    if not include_unpublished_videos:
+        videos_query = videos_query.eq("is_published", True)
+
+    videos_result = videos_query.execute()
     videos = videos_result.data or []
 
     videos_by_module: dict[str, list[dict]] = {}

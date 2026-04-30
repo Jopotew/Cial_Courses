@@ -15,7 +15,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core.dependencies import require_admin
+from app.core.dependencies import require_admin, get_current_user
 from app.schemas.module import (
     ModuleCreateRequest,
     ModuleDeleteResponse,
@@ -31,13 +31,18 @@ router = APIRouter(prefix="/modules", tags=["Módulos"])
 @router.get("/courses/{course_id}/modules", response_model=list[ModuleResponse])
 def list_modules(
     course_id: UUID,
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Lista todos los módulos del curso con sus videos. Requiere admin."""
-    course = course_service.get_course_by_id(course_id, include_unpublished=True)
+    """
+    Lista módulos del curso con sus videos.
+    - Admin: ve todos los módulos y videos (incluidos borradores).
+    - Usuario autenticado: ve solo videos publicados.
+    """
+    is_admin = current_user.get("role", 0) == 1
+    course = course_service.get_course_by_id(course_id, include_unpublished=is_admin)
     if course is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Curso no encontrado.")
-    return module_service.get_modules_by_course(course_id)
+    return module_service.get_modules_by_course(course_id, include_unpublished_videos=is_admin)
 
 
 @router.post(

@@ -12,7 +12,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.core.dependencies import require_admin
+from app.core.dependencies import require_admin, get_current_user
+from app.services import enrollment as enrollment_service
 from app.schemas.course_file import CourseFileDeleteResponse, CourseFileResponse
 from app.services import course as course_service
 from app.services import course_file as course_file_service
@@ -40,9 +41,16 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 @router.get("/courses/{course_id}/files", response_model=list[CourseFileResponse])
 def list_course_files(
     course_id: UUID,
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Lista todos los archivos del curso. Requiere admin."""
+    """Lista archivos del curso. Requiere matrícula activa (o ser admin)."""
+    user_id = UUID(current_user["id"])
+    is_admin = current_user.get("role", 0) == 1
+    if not is_admin and not enrollment_service.is_user_enrolled(user_id, course_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debes estar inscripto en el curso para acceder a los archivos.",
+        )
     return course_file_service.get_files_by_course(course_id)
 
 
